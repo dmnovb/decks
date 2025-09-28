@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner"
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/layout/sidebar/app-sidebar";
+import { AuthProvider, DecksProvider } from "@/providers";
+import { AuthGuard } from "@/components/auth-guard";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,12 +29,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark overflow-hidden">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <AuthProvider>
+          <AuthGuard>
+            <main className="p-4 flex flex-col w-full">
+              {children}
+            </main>
+          </AuthGuard>
+        </AuthProvider>
       </body>
     </html>
   );
 }
+
+{/* <SidebarTrigger /> */ }
