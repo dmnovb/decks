@@ -1,36 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Flashcard App
 
-## Getting Started
+A modern, intelligent flashcard application built with Next.js and powered by spaced repetition learning algorithms.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+🧠 **Smart Learning**: Implements the SM-2 spaced repetition algorithm to optimize your study schedule
+📚 **Deck Management**: Create, organize, and manage multiple flashcard decks
+🎯 **Progress Tracking**: Monitor your learning progress with streaks, accuracy, and performance metrics
+⚡ **Real-time Updates**: Instant synchronization across devices
+🔐 **User Authentication**: Secure login and personalized learning experience
+📱 **Responsive Design**: Works seamlessly on desktop and mobile devices
+🤖 **AI-Powered Generation**: Automatically generate flashcards from text to save time on content creation
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Tech Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Frontend**: Next.js 14, React, TypeScript
+- **Backend**: Next.js API Routes
+- **Database**: PostgreSQL with Prisma ORM
+- **Authentication**: JWT-based auth system
+- **UI**: Custom components with modern design
+- **State Management**: SWR for data fetching and caching
+- **AI Integration**: Automated flashcard generation from text input
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Learning Algorithm
 
-## Learn More
+The app uses the proven SM-2 spaced repetition algorithm to:
+- Schedule cards for review at optimal intervals
+- Adapt difficulty based on your performance
+- Track learning streaks and retention rates
+- Maximize long-term memory retention
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Built with ❤️ for effective learning.
