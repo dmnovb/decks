@@ -1,3 +1,4 @@
+import { useAuth } from "@/providers/auth-provider";
 import { useDecks } from "@/providers/decks-provider";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -8,6 +9,7 @@ interface Param {
 }
 
 const useCreateDeck = () => {
+  const { user } = useAuth()
   const { dispatch } = useDecks();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -19,7 +21,7 @@ const useCreateDeck = () => {
       const res = await fetch("/api/decks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description }),
+        body: JSON.stringify({ title, description, userId: user!.id }),
       });
 
       dispatch({ type: "ADD", deck: await res.json() });

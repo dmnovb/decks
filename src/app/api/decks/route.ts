@@ -2,10 +2,18 @@ import { Deck } from "@/generated/prisma";
 import prisma from "@/lib/prisma";
 import { NextRequest } from "next/server";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+
+    if (!userId) {
+      return new Response("Missing userId parameter", { status: 400 });
+    }
+
     const decks = await prisma.deck.findMany({
       include: { flashcards: true },
+      where: { userId }
     });
     return new Response(JSON.stringify(decks), { status: 200 });
   } catch (error) {
@@ -16,23 +24,17 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: "1" },
-    });
+    const { userId, title, description } = await request.json();
 
-    if (!user) {
-      return new Response("User not found", { status: 404 });
+    if (!userId) {
+      return new Response("Missing userId parameter", { status: 400 });
     }
-
-    const { title, description }: Deck = await request.json();
 
     const deck = await prisma.deck.create({
       data: {
         title,
         description,
-        user: {
-          connect: { id: user.id },
-        },
+        userId,
       },
     });
 

@@ -11,6 +11,7 @@ import {
   useEffect,
 } from "react";
 import useSWR from "swr";
+import { useAuth } from "./auth-provider";
 
 interface State {
   decks: Deck[];
@@ -76,9 +77,10 @@ export const DecksContext = createContext<DecksContextValue>({
 const fetcher = (endpoint: string) => fetch(endpoint).then((r) => r.json());
 
 export const DecksProvider = ({ children }: PropsWithChildren) => {
+  const { user } = useAuth()
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  const { data, error, isLoading } = useSWR<Deck[]>("/api/decks", fetcher, {
+  const { data, error, isLoading } = useSWR<Deck[]>(`/api/decks?userId=${user?.id}`, fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 60000,
     refreshInterval: 0,
