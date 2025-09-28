@@ -1,4 +1,4 @@
-# Flashcard App
+# Decks
 
 A modern, intelligent flashcard application built with Next.js and powered by spaced repetition learning algorithms.
 
