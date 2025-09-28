@@ -18,8 +18,6 @@ const Dashboard = () => {
 
   const currentDeck = state.decks.find((deck) => deck.id === id);
 
-  console.log(currentDeck)
-
   const title = (
     <Title
       mode={mode}

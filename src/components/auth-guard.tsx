@@ -60,6 +60,5 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
         )
     }
 
-    console.log('Not authenticated, not public route, showing nothing...')
     return null
 } 

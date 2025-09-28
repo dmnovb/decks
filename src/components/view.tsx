@@ -12,7 +12,7 @@ const View = ({ isLoading, children, title, subTitle }: Props) => {
   return (
     <div>
       <div className="flex flex-col gap-1">
-        <span className="text-xl font-semibold">
+        <span className="text-xl font-semibold leading-[1.5]">
           {isLoading ? <Skeleton className="w-[150px] h-[25px] rounded-xs" /> : title}
         </span>
         <span className="text-sm text-muted pb-4">

@@ -1,6 +1,4 @@
-import { Button } from "@/components/ui/button";
 import View from "@/components/view";
-import Image from "next/image";
 
 export default function Home() {
   return (
@@ -146,8 +144,8 @@ export function Dashboard() {
                           deck.urgency === "high"
                             ? "destructive"
                             : deck.urgency === "medium"
-                            ? "default"
-                            : "secondary"
+                              ? "default"
+                              : "secondary"
                         }
                         className="text-xs"
                       >
@@ -208,15 +206,14 @@ export function Dashboard() {
                 {Array.from({ length: 30 }, (_, i) => (
                   <div
                     key={i}
-                    className={`w-3 h-3 rounded-sm ${
-                      Math.random() > 0.7
+                    className={`w-3 h-3 rounded-sm ${Math.random() > 0.7
                         ? "bg-success"
                         : Math.random() > 0.4
-                        ? "bg-primary"
-                        : Math.random() > 0.2
-                        ? "bg-accent"
-                        : "bg-background-2"
-                    }`}
+                          ? "bg-primary"
+                          : Math.random() > 0.2
+                            ? "bg-accent"
+                            : "bg-background-2"
+                      }`}
                   />
                 ))}
               </div>

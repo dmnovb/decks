@@ -43,8 +43,6 @@ export function Title({ amount, title, deckId, onModeChange, mode }: TitleProps)
         setValues({ ...values, [e.target.name]: e.target.value })
     }
 
-    console.log(deckId)
-
     const onSubmit = async (e: FormEvent) => {
         e.preventDefault();
         await handleCreate({ ...values, deckId } as Flashcard);

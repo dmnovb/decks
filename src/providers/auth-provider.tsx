@@ -35,7 +35,6 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
     const checkAuth = async () => {
         try {
-            console.log('Checking authentication...')
             const response = await fetch('/api/auth/me', {
                 credentials: 'include'
             })
@@ -51,7 +50,6 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
             setUser(null)
         } finally {
             setIsLoading(false)
-            console.log('Auth loading complete')
         }
     }
 

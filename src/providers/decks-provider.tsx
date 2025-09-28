@@ -21,7 +21,8 @@ type Action =
   | { type: "ADD"; deck: Deck }
   | { type: "SET"; decks: Deck[] }
   | { type: "DELETE"; id: string }
-  | { type: "ADD_FLASHCARD"; deckId: string, flashcard: Flashcard };
+  | { type: "ADD_FLASHCARD"; deckId: string, flashcard: Flashcard }
+  | { type: "DELETE_FLASHCARD"; deckId: string; flashcardId: Flashcard['id'] }
 
 const initialState: State = {
   decks: [],
@@ -52,6 +53,15 @@ const reducer = (state: State, action: Action): State => {
         decks: state.decks.map(deck =>
           deck.id === action.deckId
             ? { ...deck, flashcards: [...(deck.flashcards || []), action.flashcard] }
+            : deck
+        )
+      }
+    case "DELETE_FLASHCARD":
+      return {
+        ...state,
+        decks: state.decks.map((deck) =>
+          deck.id === action.deckId
+            ? { ...deck, flashcards: deck.flashcards.filter((card: Flashcard) => card.id !== action.flashcardId) }
             : deck
         )
       }

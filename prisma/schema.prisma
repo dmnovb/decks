@@ -45,4 +45,15 @@ model Flashcard {
   audioUrl String?
   deckId   String
   deck     Deck    @relation(fields: [deckId], references: [id])
+
+  // Spaced repetition fields
+  difficulty     Float     @default(2.5) // SM-2 algorithm difficulty (1.3 to 2.5)
+  interval       Int       @default(1) // Days until next review
+  repetitions    Int       @default(0) // Number of times reviewed
+  easeFactor     Float     @default(2.5) // SM-2 ease factor
+  lastReviewed   DateTime? // When it was last reviewed
+  nextReview     DateTime? // When it should be reviewed next
+  streak         Int       @default(0) // Consecutive correct answers
+  totalReviews   Int       @default(0) // Total number of reviews
+  correctReviews Int       @default(0) // Number of correct reviews
 }

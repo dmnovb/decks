@@ -4,8 +4,12 @@ import { Flashcard as FlashCardType } from "@/generated/prisma";
 import { Separator } from "../ui/separator";
 import { ContextMenu, ContextMenuContent, ContextMenuItem } from "../ui/context-menu";
 import { ContextMenuTrigger } from "@radix-ui/react-context-menu";
+import useDeleteCard from "@/hooks/use-delete-flashcard";
 
 export function FlashCard({ card }: { card: FlashCardType }) {
+
+    const { handleDelete } = useDeleteCard()
+
     return (
         <ContextMenu>
             <ContextMenuTrigger asChild>
@@ -44,9 +48,7 @@ export function FlashCard({ card }: { card: FlashCardType }) {
             </ContextMenuTrigger>
             <ContextMenuContent className="bg-background-2 border-divider-3 border">
                 <ContextMenuItem className="hover:bg-background-3">Profile</ContextMenuItem>
-                <ContextMenuItem>Billing</ContextMenuItem>
-                <ContextMenuItem>Team</ContextMenuItem>
-                <ContextMenuItem>Subscription</ContextMenuItem>
+                <ContextMenuItem onClick={() => handleDelete(card.id, card.deckId)}>Delete</ContextMenuItem>
             </ContextMenuContent>
         </ContextMenu>
     )
