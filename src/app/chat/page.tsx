@@ -3,9 +3,12 @@
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { StarIcon } from "@/icons"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useAI } from "@/hooks/use-ai"
 
 const Chat = () => {
+    const { sendMessage, loading, error } = useAI()
+
     const [messages, setMessages] = useState<Array<{ id: string; role: "user" | "assistant"; content: string }>>([
         { id: "m1", role: "assistant", content: "Hi! I’m Ace. How can I help you today?" },
         { id: "m2", role: "user", content: "Help me practice irregular verbs in Spanish." },
@@ -13,14 +16,48 @@ const Chat = () => {
     ])
     const [inputValue, setInputValue] = useState("")
 
-    function handleSend() {
+    const bottomRef = useRef<HTMLDivElement | null>(null)
+    useEffect(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+    }, [messages])
+
+    async function handleSend() {
         const trimmed = inputValue.trim()
         if (!trimmed) return
+
+        // Build history and ensure it starts with a user turn
+        const firstUserIdx = messages.findIndex(m => m.role === "user")
+        const history = firstUserIdx === -1 ? [] : messages.slice(firstUserIdx)
+
+        const userMsg = { id: crypto.randomUUID(), role: "user" as const, content: trimmed }
+        const assistantId = crypto.randomUUID()
+
+        // Optimistically add user + assistant placeholder
         setMessages(prev => [
             ...prev,
-            { id: crypto.randomUUID(), role: "user", content: trimmed },
+            userMsg,
+            { id: assistantId, role: "assistant", content: "" },
         ])
         setInputValue("")
+
+        try {
+            const aiText = await sendMessage(trimmed, {
+                systemPrompt: "You are Ace, a helpful language learning assistant.",
+                context: "The user is practicing languages in a flashcard app.",
+                history,
+            })
+            setMessages(prev =>
+                prev.map(m => (m.id === assistantId ? { ...m, content: aiText } : m))
+            )
+        } catch {
+            setMessages(prev =>
+                prev.map(m =>
+                    m.id === assistantId
+                        ? { ...m, content: "Sorry, I couldn't respond. Please try again." }
+                        : m
+                )
+            )
+        }
     }
 
     function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -64,22 +101,35 @@ const Chat = () => {
                         </div>
                     )
                 })}
+
+                {/* Auto-scroll sentinel */}
+                <div ref={bottomRef} />
             </div>
 
             {/* Input */}
-            <div className="p-3 border-t border-divider-1 bg-background-1 rounded-b-sm">
+            <form
+                onSubmit={(e) => { e.preventDefault(); handleSend() }}
+                className="p-3 border-t border-divider-1 bg-background-1 rounded-b-sm"
+            >
                 <div className="flex items-center gap-2">
                     <Input
                         value={inputValue}
                         onChange={e => setInputValue(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder="Chat with Ace…"
+                        disabled={loading}
+                        autoFocus
                     />
-                    <Button type="button" onClick={handleSend} variant="default">
-                        Send
+                    <Button type="submit" onClick={handleSend} variant="default" disabled={loading}>
+                        {loading ? "Sending..." : "Send"}
                     </Button>
                 </div>
-            </div>
+                {error && (
+                    <div className="mt-2 text-xs text-red-500">
+                        {String(error)}
+                    </div>
+                )}
+            </form>
         </div>
     )
 }
