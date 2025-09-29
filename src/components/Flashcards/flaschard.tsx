@@ -5,10 +5,27 @@ import { Separator } from "../ui/separator";
 import { ContextMenu, ContextMenuContent, ContextMenuItem } from "../ui/context-menu";
 import { ContextMenuTrigger } from "@radix-ui/react-context-menu";
 import useDeleteCard from "@/hooks/use-delete-flashcard";
+import { useAI } from "@/hooks/use-ai";
+import { useState } from "react";
 
 export function FlashCard({ card }: { card: FlashCardType }) {
-
+    const { sendMessage, loading, error } = useAI()
     const { handleDelete } = useDeleteCard()
+
+    const [response, setResponse] = useState('')
+
+    const handleSubmit = async () => {
+        try {
+            const aiResponse = await sendMessage('What is React?', {
+                systemPrompt: 'You are a helpful coding assistant',
+                context: 'User is learning web development'
+            });
+            setResponse(aiResponse);
+        } catch (err) {
+            console.error('Error:', err);
+        }
+    };
+
 
     return (
         <ContextMenu>
@@ -44,6 +61,16 @@ export function FlashCard({ card }: { card: FlashCardType }) {
                             due today
                         </div>
                     </div>
+
+
+                    <div>
+                        <button onClick={handleSubmit} disabled={loading}>
+                            {loading ? 'Thinking...' : 'Ask AI'}
+                        </button>
+                        {error && <p>Error: {error}</p>}
+                        {response && <p>{response}</p>}
+                    </div>
+
                 </div>
             </ContextMenuTrigger>
             <ContextMenuContent className="bg-background-2 border-divider-3 border">

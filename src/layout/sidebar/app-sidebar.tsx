@@ -6,48 +6,75 @@ import {
   SidebarFooter as SidebarFooterPrimitive,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDecks } from "@/providers/decks-provider";
+import { SidebarFooter, SidebarItem } from "@/components/Sidebar";
+import { StarIcon } from '@/icons'
+import { useRouter } from "next/navigation";
+
 import useDeleteDeck from "@/hooks/use-delete-deck";
 import CreateNew from "./create-new";
 import Link from "next/link";
-import { SidebarFooter, SidebarItem } from "@/components/Sidebar";
 
 export const AppSidebar = () => {
   const { isLoading, state } = useDecks();
   const { handleDelete } = useDeleteDeck();
+  const router = useRouter()
 
   const { decks } = state;
 
   return (
     <Sidebar>
-      <Link href="/">
-        <SidebarHeader className="text-xl font-extrabold flex gap-2 p-4.5 border-b-1">
-          DECK
+      <SidebarContent className="gap-0">
+        <SidebarHeader className="text-xl font-extrabold flex p-4 border-b">
+          <Link href="/">DECK</Link>
         </SidebarHeader>
-      </Link>
 
-      <SidebarMenuItem className="border-b w-full list-none p-4">
-        <CreateNew />
-      </SidebarMenuItem>
+        <SidebarMenu>
+          <SidebarMenuItem className="border-b w-full list-none p-4">
+            <CreateNew />
+          </SidebarMenuItem>
+        </SidebarMenu>
 
-      <SidebarContent>
         <SidebarGroup>
+          <SidebarGroupLabel>Tools</SidebarGroupLabel>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild onClick={() => router.push('/chat')}>
+                <div className="cursor-pointer h-full flex items-center gap-2">
+                  <StarIcon size={18} />
+                  <div className="flex flex-col">
+                    <span>Ask Ace</span>
+                    <span className="text-[12px] antialiased text-muted">
+                      Ace is your personal assistant
+                    </span>
+                  </div>
+                </div>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Your Decks</SidebarGroupLabel>
           <SidebarGroupContent>
             {!isLoading ? (
               <SidebarMenu>
                 {decks?.map(({ id, title, description }) => (
-                  <SidebarItem
-                    id={id!}
-                    title={title!}
-                    description={description}
-                    key={id}
-                    onEvent={() => handleDelete(id!)}
-                  />
+                  <SidebarMenuItem key={id}>
+                    <SidebarItem
+                      id={id!}
+                      title={title!}
+                      description={description}
+                      onEvent={() => handleDelete(id!)}
+                    />
+                  </SidebarMenuItem>
                 ))}
               </SidebarMenu>
             ) : (

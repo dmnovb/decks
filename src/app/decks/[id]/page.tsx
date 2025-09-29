@@ -33,7 +33,7 @@ const Dashboard = () => {
       {mode === 'study' && <FlashcardsView />}
       {mode === 'normal' && (
         <div className="flex gap-4 flex-wrap">
-          {currentDeck?.flashcards?.map((card: FlashCardType) => <FlashCard card={card} />)}
+          {currentDeck?.flashcards?.map((card: FlashCardType) => <FlashCard key={card.id} card={card} />)}
         </div>
       )}
     </View>
