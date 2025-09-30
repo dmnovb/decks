@@ -17,12 +17,13 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  password  String
-  createdAt DateTime @default(now())
-  decks     Deck[]   @relation("UserDecks")
+  id            String         @id @default(uuid())
+  email         String         @unique
+  name          String?
+  password      String
+  createdAt     DateTime       @default(now())
+  decks         Deck[]         @relation("UserDecks")
+  conversations Conversation[] @relation("UserConversations")
 }
 
 model Deck {
@@ -56,4 +57,23 @@ model Flashcard {
   streak         Int       @default(0) // Consecutive correct answers
   totalReviews   Int       @default(0) // Total number of reviews
   correctReviews Int       @default(0) // Number of correct reviews
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  title     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  userId    String
+  user      User      @relation("UserConversations", fields: [userId], references: [id])
+  messages  Message[]
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  role           String
+  content        String
+  createdAt      DateTime     @default(now())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
 }

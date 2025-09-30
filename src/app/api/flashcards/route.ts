@@ -11,9 +11,7 @@ export async function GET(request: NextRequest) {
             return new Response("Deck ID is required", { status: 400 });
         }
 
-        const flashcards = await prisma.flashcard.findMany({
-            where: { deckId }
-        });
+        const flashcards = await prisma.flashcard.findMany({ where: { deckId } })
 
         return new Response(JSON.stringify(flashcards), { status: 200 });
 
@@ -36,12 +34,8 @@ export async function POST(request: NextRequest) {
                 front,
                 back,
                 notes,
-                deck: {
-                    connect: {
-                        id: deckId
-                    },
-                }
-            },
+                deck: { connect: { id: deckId } },
+            }
         })
 
         return new Response(JSON.stringify(flashcard), { status: 201 });

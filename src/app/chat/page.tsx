@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react"
 import { useAI } from "@/hooks/use-ai"
 
 const Chat = () => {
-    const { sendMessage, loading, error } = useAI()
+    const { sendMessageStream, loading, error } = useAI()
 
     const [messages, setMessages] = useState<Array<{ id: string; role: "user" | "assistant"; content: string }>>([
         { id: "m1", role: "assistant", content: "Hi! I’m Ace. How can I help you today?" },
@@ -41,14 +41,38 @@ const Chat = () => {
         setInputValue("")
 
         try {
-            const aiText = await sendMessage(trimmed, {
-                systemPrompt: "You are Ace, a helpful language learning assistant.",
-                context: "The user is practicing languages in a flashcard app.",
-                history,
+            const response = await fetch('/api/ai/stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: trimmed,
+                    system: "You are Ace, a helpful language learning assistant.",
+                    temperature: 0.7,
+                    maxOutputTokens: 2048,
+                    model: 'sonar-pro'
+                })
             })
-            setMessages(prev =>
-                prev.map(m => (m.id === assistantId ? { ...m, content: aiText } : m))
-            )
+
+            if (!response.ok || !response.body) {
+                throw new Error(`HTTP error! status: ${response.status}`)
+            }
+
+            const reader = response.body.getReader()
+            const decoder = new TextDecoder()
+            let fullText = ""
+
+            while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+                const chunkText = decoder.decode(value, { stream: true })
+                fullText += chunkText
+
+                // Incrementally update assistant message
+                setMessages(prev => prev.map(m => (
+                    m.id === assistantId ? { ...m, content: fullText } : m
+                )))
+            }
+
         } catch {
             setMessages(prev =>
                 prev.map(m =>
@@ -57,13 +81,6 @@ const Chat = () => {
                         : m
                 )
             )
-        }
-    }
-
-    function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-        if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault()
-            handleSend()
         }
     }
 
@@ -115,7 +132,7 @@ const Chat = () => {
                     <Input
                         value={inputValue}
                         onChange={e => setInputValue(e.target.value)}
-                        onKeyDown={handleKeyDown}
+                        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend() } }}
                         placeholder="Chat with Ace…"
                         disabled={loading}
                         autoFocus

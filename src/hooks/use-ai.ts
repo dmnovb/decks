@@ -50,7 +50,7 @@ export function useAI() {
         setError(null);
 
         try {
-            const response = await fetch(`/api/ai?message=${encodeURIComponent(message)}`, {
+            const response = await fetch(`/api/ai/stream?message=${encodeURIComponent(message)}`, {
                 method: 'GET',
             });
 
