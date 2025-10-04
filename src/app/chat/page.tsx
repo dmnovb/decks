@@ -5,14 +5,15 @@ import { Button } from "@/components/ui/button"
 import { StarIcon } from "@/icons"
 import { useEffect, useRef, useState } from "react"
 import { useAI } from "@/hooks/use-ai"
+import { useDecks } from "@/providers/decks-provider"
+import { toast } from "sonner"
 
 const Chat = () => {
-    const { sendMessageStream, loading, error } = useAI()
+    const { sendAgentMessage, loading, error } = useAI()
+    const { refreshDecks } = useDecks()
 
     const [messages, setMessages] = useState<Array<{ id: string; role: "user" | "assistant"; content: string }>>([
-        { id: "m1", role: "assistant", content: "Hi! I’m Ace. How can I help you today?" },
-        { id: "m2", role: "user", content: "Help me practice irregular verbs in Spanish." },
-        { id: "m3", role: "assistant", content: "Sure! Do you want flashcards, a quiz, or an explanation first?" },
+        { id: "m1", role: "assistant", content: "Hi! I'm Ace, your language learning assistant. I can help you create flashcard decks, generate practice materials, and answer questions. What would you like to learn today?" },
     ])
     const [inputValue, setInputValue] = useState("")
 
@@ -25,62 +26,53 @@ const Chat = () => {
         const trimmed = inputValue.trim()
         if (!trimmed) return
 
-        // Build history and ensure it starts with a user turn
-        const firstUserIdx = messages.findIndex(m => m.role === "user")
-        const history = firstUserIdx === -1 ? [] : messages.slice(firstUserIdx)
-
         const userMsg = { id: crypto.randomUUID(), role: "user" as const, content: trimmed }
         const assistantId = crypto.randomUUID()
 
-        // Optimistically add user + assistant placeholder
-        setMessages(prev => [
-            ...prev,
-            userMsg,
-            { id: assistantId, role: "assistant", content: "" },
-        ])
+        // Add user message
+        setMessages(prev => [...prev, userMsg])
         setInputValue("")
 
         try {
-            const response = await fetch('/api/ai/stream', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    prompt: trimmed,
-                    system: "You are Ace, a helpful language learning assistant.",
-                    temperature: 0.7,
-                    maxOutputTokens: 2048,
-                    model: 'sonar-pro'
-                })
-            })
+            // Build history for the agent (exclude the greeting message)
+            const history = messages.slice(1).map(msg => ({
+                role: msg.role,
+                content: msg.content
+            }))
 
-            if (!response.ok || !response.body) {
-                throw new Error(`HTTP error! status: ${response.status}`)
+            // Call agent with function calling capabilities
+            const result = await sendAgentMessage(trimmed, history)
+
+            // Add assistant response
+            setMessages(prev => [
+                ...prev,
+                { id: assistantId, role: "assistant", content: result.response }
+            ])
+
+            // Check if any database actions were performed
+            if (result.actionsPerformed.length > 0) {
+                // Refresh decks to show the new content
+                await refreshDecks()
+
+                // Show success notification based on what was created
+                if (result.actionsPerformed.includes('create_deck') ||
+                    result.actionsPerformed.includes('create_deck_with_flashcards')) {
+                    toast.success("Deck created successfully! Check your sidebar.")
+                } else if (result.actionsPerformed.includes('create_flashcards')) {
+                    toast.success("Flashcards added successfully!")
+                }
             }
 
-            const reader = response.body.getReader()
-            const decoder = new TextDecoder()
-            let fullText = ""
-
-            while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
-                const chunkText = decoder.decode(value, { stream: true })
-                fullText += chunkText
-
-                // Incrementally update assistant message
-                setMessages(prev => prev.map(m => (
-                    m.id === assistantId ? { ...m, content: fullText } : m
-                )))
-            }
-
-        } catch {
-            setMessages(prev =>
-                prev.map(m =>
-                    m.id === assistantId
-                        ? { ...m, content: "Sorry, I couldn't respond. Please try again." }
-                        : m
-                )
-            )
+        } catch (err) {
+            setMessages(prev => [
+                ...prev,
+                {
+                    id: assistantId,
+                    role: "assistant",
+                    content: "Sorry, I couldn't respond. Please try again."
+                }
+            ])
+            toast.error("Failed to process your request. Please try again.")
         }
     }
 

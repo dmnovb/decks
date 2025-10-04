@@ -94,9 +94,52 @@ export function useAI() {
         }
     };
 
+    const sendAgentMessage = async (message: string, history: any[] = []) => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            const response = await fetch('/api/ai/agent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message,
+                    history,
+                    model: 'gemini-2.0-flash-exp',
+                    temperature: 0.7,
+                    maxTokens: 2048
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to get response');
+            }
+
+            return {
+                response: data.response,
+                actionsPerformed: data.actionsPerformed || []
+            };
+
+        } catch (err) {
+            setError((err as Error).message);
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return {
         sendMessage,
         sendMessageStream,
+        sendAgentMessage,
         loading,
         error
     };

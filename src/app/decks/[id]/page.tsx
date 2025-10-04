@@ -32,12 +32,12 @@ const Dashboard = () => {
     <View title={title} subTitle={currentDeck?.description!} isLoading={isLoading}>
       {mode === 'study' && <FlashcardsView />}
       {mode === 'normal' && (
-        <div className="flex gap-4 flex-wrap">
+        <div className="flex gap-4 flex-wrap overflow-scroll">
           {currentDeck?.flashcards?.map((card: FlashCardType) => <FlashCard key={card.id} card={card} />)}
         </div>
       )}
     </View>
-  );
-};
+  )
+}
 
-export default Dashboard;
+export default Dashboard

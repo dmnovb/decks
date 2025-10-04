@@ -75,6 +75,7 @@ interface DecksContextValue {
   dispatch: Dispatch<Action>;
   isLoading: boolean;
   error: null;
+  refreshDecks: () => Promise<void>;
 }
 
 export const DecksContext = createContext<DecksContextValue>({
@@ -82,6 +83,7 @@ export const DecksContext = createContext<DecksContextValue>({
   dispatch: () => undefined,
   isLoading: false,
   error: null,
+  refreshDecks: async () => { },
 });
 
 const fetcher = (endpoint: string) => fetch(endpoint).then((r) => r.json());
@@ -90,7 +92,7 @@ export const DecksProvider = ({ children }: PropsWithChildren) => {
   const { user } = useAuth()
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  const { data, error, isLoading } = useSWR<Deck[]>(`/api/decks?userId=${user?.id}`, fetcher, {
+  const { data, error, isLoading, mutate } = useSWR<Deck[]>(`/api/decks?userId=${user?.id}`, fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 60000,
     refreshInterval: 0,
@@ -101,8 +103,12 @@ export const DecksProvider = ({ children }: PropsWithChildren) => {
     if (data) dispatch({ type: "SET", decks: data });
   }, [data, dispatch]);
 
+  const refreshDecks = async () => {
+    await mutate();
+  };
+
   return (
-    <DecksContext.Provider value={{ state, dispatch, error, isLoading }}>
+    <DecksContext.Provider value={{ state, dispatch, error, isLoading, refreshDecks }}>
       {children}
     </DecksContext.Provider>
   );

@@ -19,7 +19,7 @@ import { Mode } from "@/app/decks/[id]/page";
 import { Badge } from "../ui/badge";
 
 
-type FlashcardForm = Omit<Flashcard, 'id' | 'audioUrl' | 'deckId'>
+type FlashcardForm = Omit<Flashcard, 'id' | 'audioUrl' | 'deckId' | 'nextReview' | 'lastReviewed' | 'streak' | 'totalReviews' | 'correctReviews'>
 
 interface TitleProps {
     title: string;
@@ -36,7 +36,11 @@ export function Title({ amount, title, deckId, onModeChange, mode }: TitleProps)
     const [values, setValues] = useState<Record<keyof FlashcardForm, string | null>>({
         back: '',
         front: '',
-        notes: null
+        notes: null,
+        difficulty: null,
+        interval: null,
+        repetitions: null,
+        easeFactor: null
     })
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -45,12 +49,16 @@ export function Title({ amount, title, deckId, onModeChange, mode }: TitleProps)
 
     const onSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        await handleCreate({ ...values, deckId } as Flashcard);
+        await handleCreate({ ...values, deckId } as unknown as Flashcard);
         setOpen(false);
         setValues({
             back: '',
             front: '',
-            notes: null
+            notes: null,
+            difficulty: null,
+            interval: null,
+            repetitions: null,
+            easeFactor: null
         });
     }
 
@@ -59,7 +67,7 @@ export function Title({ amount, title, deckId, onModeChange, mode }: TitleProps)
             <div className="flex items-center gap-2">
                 <span>{title}</span>
                 <Badge variant="outline" className="m-0">
-                    {amount || 0} Cards
+                    {amount || 0} Card{amount === 1 ? '' : 's'}
                 </Badge>
             </div>
 
