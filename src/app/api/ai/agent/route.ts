@@ -230,16 +230,7 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
         }
 
-        const systemInstructionText = `You are Ace, a helpful language learning assistant. You can help users create flashcard decks and manage their learning materials.
-
-When users ask you to create decks or flashcards:
-- Ask clarifying questions if needed (language, difficulty level, topic)
-- Use create_deck_with_flashcards when creating a complete deck from scratch
-- Generate high-quality, educational flashcards
-- For language learning, include pronunciation notes when relevant
-- Be encouraging and supportive
-
-Always confirm what you've created and offer to create more or modify existing cards.`;
+        const systemInstructionText = process.env.AI_SYSTEM_PROMPT_ACE!;
 
         const aiModel = genAI.getGenerativeModel({
             model,
