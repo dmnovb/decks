@@ -8,6 +8,17 @@ import { FlashcardsView, Title, FlashCard } from "@/components/Flashcards";
 import { useState } from "react";
 import { Flashcard as FlashCardType } from "@/generated/prisma";
 
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
+import { ArrowUpRightIcon, Folder } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
 export type Mode = 'study' | 'normal'
 
 const Dashboard = () => {
@@ -36,8 +47,29 @@ const Dashboard = () => {
           {currentDeck?.flashcards?.map((card: FlashCardType) => <FlashCard key={card.id} card={card} />)}
         </div>
       )}
+      {!currentDeck?.flashcards?.length && <EmptyView />}
     </View>
   )
 }
 
 export default Dashboard
+
+const EmptyView = () => (
+  <Empty>
+    <EmptyHeader>
+      <EmptyMedia className="text-primary bg-primary/10" variant="icon">
+        <Folder />
+      </EmptyMedia>
+      <EmptyTitle>No flashcards yet</EmptyTitle>
+      <EmptyDescription>
+        You haven&apos;t created any flashcards yet. Get started by creating
+        your first flashcard.
+      </EmptyDescription>
+    </EmptyHeader>
+    <EmptyContent>
+      <div className="flex gap-2">
+        <Button variant="secondary">Create Flashcard</Button>
+      </div>
+    </EmptyContent>
+  </Empty>
+)

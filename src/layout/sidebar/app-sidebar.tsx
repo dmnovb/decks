@@ -52,7 +52,7 @@ export const AppSidebar = () => {
                   <div className="flex flex-col">
                     <span>Ask Ace</span>
                     <span className="text-[12px] antialiased text-muted">
-                      Ace is your personal assistant
+                      Your language learning companion
                     </span>
                   </div>
                 </div>

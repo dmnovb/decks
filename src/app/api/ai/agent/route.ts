@@ -108,6 +108,20 @@ const functions = [
             properties: {},
             required: []
         }
+    },
+    {
+        name: "list_user_flashcards_in_deck",
+        description: "Lists all flashcards belonging to a specific deck. Use this when user asks to see the flashcards in a specific deck.",
+        parameters: {
+            type: SchemaType.OBJECT,
+            properties: {
+                deckId: {
+                    type: SchemaType.STRING,
+                    description: 'The ID of the deck to list flashcards from'
+                }
+            },
+            required: ['deckId']
+        }
     }
 ];
 
@@ -186,6 +200,35 @@ async function executeFunctions(functionName: string, args: any, userId: string)
                     category: deck.category,
                     flashcardCount: deck._count.flashcards
                 }))
+            };
+        }
+
+        case 'list_user_flashcards_in_deck': {
+            const deck = await prisma.deck.findFirst({
+                where: { id: args.deckId, userId },
+            });
+            if (!deck) {
+                return {
+                    success: false,
+                    error: 'Deck not found or you do not have access to it'
+                };
+            }
+
+            const flashcards = await prisma.flashcard.findMany({
+                where: { deckId: args.deckId }
+            });
+
+            return {
+                success: true,
+                deckTitle: deck.title,
+                count: flashcards.length,
+                flashcards: flashcards.map((flashcard: any) => ({
+                    id: flashcard.id,
+                    front: flashcard.front,
+                    back: flashcard.back,
+                    notes: flashcard.notes
+                })),
+                message: `Found ${flashcards.length} flashcard${flashcards.length !== 1 ? 's' : ''} in deck "${deck.title}"`
             };
         }
 

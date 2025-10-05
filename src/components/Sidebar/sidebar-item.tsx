@@ -22,7 +22,7 @@ export function SidebarItem({ onEvent, title, description, id }: Props) {
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
               <div className={`cursor-pointer h-full flex items-center ${selectedDeck?.id === id ? "bg-background-2" : ""}`}>
-                <FoldersIcon />
+                <FoldersIcon className="text-primary bg-primary/10 p-2 rounded-sm box-content" />
                 <div className="flex flex-col">
                   <span>{title}</span>
                   {description && (

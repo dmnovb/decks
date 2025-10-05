@@ -51,15 +51,23 @@ const Chat = () => {
 
             // Check if any database actions were performed
             if (result.actionsPerformed.length > 0) {
-                // Refresh decks to show the new content
-                await refreshDecks()
+                // Refresh decks to show the new content if content was modified
+                if (result.actionsPerformed.some((action: string) =>
+                    action.includes('create_deck') || action.includes('create_flashcards')
+                )) {
+                    await refreshDecks()
+                }
 
-                // Show success notification based on what was created
+                // Show success notification based on what was performed
                 if (result.actionsPerformed.includes('create_deck') ||
                     result.actionsPerformed.includes('create_deck_with_flashcards')) {
                     toast.success("Deck created successfully! Check your sidebar.")
                 } else if (result.actionsPerformed.includes('create_flashcards')) {
                     toast.success("Flashcards added successfully!")
+                } else if (result.actionsPerformed.includes('list_user_flashcards_in_deck')) {
+                    toast.success("Flashcards retrieved successfully!")
+                } else if (result.actionsPerformed.includes('list_user_decks')) {
+                    toast.success("Decks retrieved successfully!")
                 }
             }
 
