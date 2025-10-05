@@ -48,7 +48,7 @@ export const AppSidebar = () => {
             <SidebarMenuItem>
               <SidebarMenuButton asChild onClick={() => router.push('/chat')}>
                 <div className="cursor-pointer h-full flex items-center gap-2">
-                  <StarIcon size={18} />
+                  <StarIcon size={18} className="text-primary bg-primary/10 p-2 rounded-sm box-content" />
                   <div className="flex flex-col">
                     <span>Ask Ace</span>
                     <span className="text-[12px] antialiased text-muted">

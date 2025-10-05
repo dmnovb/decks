@@ -88,8 +88,8 @@ const Chat = () => {
         <div className="box-border bg-background-1 border border-divider-1 rounded-sm flex flex-col">
             {/* Header */}
             <div className="p-4 border-b border-divider-1 flex items-center gap-3">
-                <div className="p-2 bg-background-2 w-fit rounded-full border border-divider-2 flex items-center justify-center">
-                    <StarIcon />
+                <div className="p-2 bg-primary/10 w-fit rounded-full border border-primary flex items-center justify-center">
+                    <StarIcon className="text-primary" />
                 </div>
                 <div className="flex flex-col">
                     <span className="text-sm font-medium">Ace</span>
