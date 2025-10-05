@@ -76,3 +76,29 @@ export async function DELETE(request: NextRequest) {
         return new Response("Internal Server Error", { status: 500 });
     }
 }
+
+export async function PATCH(request: NextRequest) {
+    try {
+        const { id, deckId, difficulty, interval, repetitions, easeFactor, lastReviewed, nextReview, streak, totalReviews, correctReviews } = await request.json();
+
+        const flashcard = await prisma.flashcard.update({
+            where: { id, deckId },
+            data: {
+                difficulty,
+                interval,
+                repetitions,
+                easeFactor,
+                lastReviewed,
+                nextReview,
+                streak,
+                totalReviews,
+                correctReviews,
+            }
+        });
+
+        return new Response(JSON.stringify(flashcard), { status: 200 });
+    } catch (error) {
+        console.log(error);
+        return new Response("Internal Server Error", { status: 500 });
+    }
+}

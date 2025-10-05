@@ -12,19 +12,19 @@ const badgeVariants = cva(
         default:
           "border-transparent bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
         success:
-          "border-transparent bg-success text-success-foreground [a&]:hover:bg-success/90",
+          "bg-chart-2/30 text-chart-2 border-chart-2/50 hover:bg-chart-2/40 hover:border-chart-2/60 transition-all",
         warning:
-          "border-transparent bg-warning text-warning-foreground [a&]:hover:bg-warning/90",
+          "border-transparent bg-amber-500 text-white [a&]:hover:bg-warning/90",
         info:
-          "border-transparent bg-info text-info-foreground [a&]:hover:bg-info/90",
+          "border-transparent bg-sky-500 text-white [a&]:hover:bg-info/90",
         danger:
-          "border-transparent bg-danger text-danger-foreground [a&]:hover:bg-danger/90",
+          "border-transparent bg-rose-500 text-white [a&]:hover:bg-danger/90",
         blackout:
-          "border-transparent bg-blackout text-blackout-foreground [a&]:hover:bg-blackout/90",
+          "border-transparent bg-gray-500 text-white [a&]:hover:bg-blackout/90",
         secondary:
-          "border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
+          "border-transparent bg-purple-500 text-white [a&]:hover:bg-secondary/90",
         destructive:
-          "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+          "border-transparent bg-red-500 text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
         outline:
           "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
       },

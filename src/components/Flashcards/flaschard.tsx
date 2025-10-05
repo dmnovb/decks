@@ -54,8 +54,9 @@ const FlashCardSheet = ({ card, children }: { card: FlashCardType, children: Rea
     if (!card) return null
 
     const currentCard = editedCard || card
-    const accuracyRate =
-        currentCard.totalReviews > 0 ? Math.round((currentCard.correctReviews / currentCard.totalReviews) * 100) : 0
+    const accuracyRate = card.totalReviews > 0 ? Math.round((card.correctReviews / card.totalReviews) * 100) : 0
+
+    console.log(card)
 
     const getDifficultyLabel = (difficulty: number) => {
         if (difficulty === 0) return "Blackout"

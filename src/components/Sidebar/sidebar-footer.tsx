@@ -20,9 +20,10 @@ export function SidebarFooter() {
           <SidebarMenuButton className="flex justify-between">
             <div className="flex items-center gap-2">
               <Avatar>
-                {/*<AvatarImage src="https://github.com/shadcn.png" />*/}
-                <AvatarImage src="https://cdn.discordapp.com/avatars/307881481823584256/f351ac0737ad1132f97c960d089af7c9.webp?size=80" />
-                <AvatarFallback>DE</AvatarFallback>
+                {/* <AvatarImage src="https://cdn.discordapp.com/avatars/307881481823584256/f351ac0737ad1132f97c960d089af7c9.webp?size=80" /> */}
+                <AvatarFallback className="bg-gradient-to-br from-green-200 to-green-900 font-extrabold text-black">
+                  {user!.name?.charAt(0).toUpperCase()}
+                </AvatarFallback>
               </Avatar>
 
               <div className="flex flex-col">

@@ -3,6 +3,7 @@ import { FoldersIcon, Pencil, Trash } from "lucide-react";
 import Link from "next/link";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "../ui/context-menu";
 import { SidebarMenuButton, SidebarMenuItem } from "../ui/sidebar";
+import { useDecks } from "@/providers/decks-provider";
 
 interface Props {
   title: string;
@@ -12,13 +13,15 @@ interface Props {
 }
 
 export function SidebarItem({ onEvent, title, description, id }: Props) {
+  const { selectDeck, selectedDeck } = useDecks();
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <Link href={`/decks/${id}`}>
+        <Link href={`/decks/${id}`} onClick={() => selectDeck(id)}>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
-              <div className="cursor-pointer h-full flex items-center">
+              <div className={`cursor-pointer h-full flex items-center ${selectedDeck?.id === id ? "bg-background-2" : ""}`}>
                 <FoldersIcon />
                 <div className="flex flex-col">
                   <span>{title}</span>

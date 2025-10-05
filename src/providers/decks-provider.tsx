@@ -15,17 +15,21 @@ import { useAuth } from "./auth-provider";
 
 interface State {
   decks: Deck[];
+  selectedDeck: Deck | null;
 }
 
 type Action =
   | { type: "ADD"; deck: Deck }
   | { type: "SET"; decks: Deck[] }
   | { type: "DELETE"; id: string }
+  | { type: "SELECT"; deckId: string }
   | { type: "ADD_FLASHCARD"; deckId: string, flashcard: Flashcard }
   | { type: "DELETE_FLASHCARD"; deckId: string; flashcardId: Flashcard['id'] }
+  | { type: "UPDATE_FLASHCARD"; deckId: string; flashcard: Flashcard }
 
 const initialState: State = {
   decks: [],
+  selectedDeck: null,
 };
 
 const reducer = (state: State, action: Action): State => {
@@ -34,17 +38,41 @@ const reducer = (state: State, action: Action): State => {
       return {
         ...state,
         decks: [...state.decks, action.deck],
+        selectedDeck: state.selectedDeck ? state.selectedDeck : action.deck,
+      };
+
+    case "SELECT":
+      return {
+        ...state,
+        selectedDeck: state.decks.find((deck) => deck.id === action.deckId)!,
       };
 
     case "SET":
       return {
         ...state,
         decks: action.decks,
+        selectedDeck: state.selectedDeck ? action.decks.find((deck) => deck.id === state.selectedDeck?.id) || null : null,
       };
     case "DELETE":
+      const deletedDeckIndex = state.decks.findIndex((deck) => deck.id === action.id);
+      const filteredDecks = state.decks.filter((deck) => deck.id !== action.id);
+
+      let newSelectedDeck = state.selectedDeck;
+
+      if (state.selectedDeck?.id === action.id) {
+        if (filteredDecks.length === 0) {
+          newSelectedDeck = null;
+        } else if (deletedDeckIndex < filteredDecks.length) {
+          newSelectedDeck = filteredDecks[deletedDeckIndex];
+        } else {
+          newSelectedDeck = filteredDecks[filteredDecks.length - 1];
+        }
+      }
+
       return {
         ...state,
-        decks: state.decks.filter((deck) => deck.id !== action.id),
+        decks: filteredDecks,
+        selectedDeck: newSelectedDeck,
       };
 
     case "ADD_FLASHCARD":
@@ -65,6 +93,13 @@ const reducer = (state: State, action: Action): State => {
             : deck
         )
       }
+    case "UPDATE_FLASHCARD":
+      return {
+        ...state,
+        decks: state.decks.map((deck) =>
+          deck.id === action.deckId ? { ...deck, flashcards: deck.flashcards.map((card: Flashcard) => card.id === action.flashcard.id ? action.flashcard : card) } : deck
+        )
+      }
     default:
       return state;
   }
@@ -76,6 +111,8 @@ interface DecksContextValue {
   isLoading: boolean;
   error: null;
   refreshDecks: () => Promise<void>;
+  selectDeck: (deckId: string) => void;
+  selectedDeck: Deck | null;
 }
 
 export const DecksContext = createContext<DecksContextValue>({
@@ -84,6 +121,8 @@ export const DecksContext = createContext<DecksContextValue>({
   isLoading: false,
   error: null,
   refreshDecks: async () => { },
+  selectDeck: () => { },
+  selectedDeck: null,
 });
 
 const fetcher = (endpoint: string) => fetch(endpoint).then((r) => r.json());
@@ -107,8 +146,21 @@ export const DecksProvider = ({ children }: PropsWithChildren) => {
     await mutate();
   };
 
+  const selectDeck = (deckId: string) => {
+    dispatch({ type: "SELECT", deckId });
+  };
+
   return (
-    <DecksContext.Provider value={{ state, dispatch, error, isLoading, refreshDecks }}>
+    <DecksContext.Provider value={{
+      state,
+      dispatch,
+      error,
+      isLoading,
+      refreshDecks,
+      selectDeck,
+      selectedDeck: state.selectedDeck,
+    }}
+    >
       {children}
     </DecksContext.Provider>
   );

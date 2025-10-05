@@ -5,54 +5,30 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
   ArrowLeft,
-  RotateCcw,
   Eye,
   EyeOff,
   Clock,
-  Zap,
-  Brain,
-  Target,
-  LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { Flashcard } from "@/generated/prisma";
 import { useParams } from "next/navigation";
 import useSWR from "swr";
-import { Badge } from "../ui/badge";
 import DifficultyBadge from "../difficulty-badge";
-
-// SM-2 difficulty/quality levels (0-5)
-const difficultyColors = {
-  0: "bg-red-500/20 text-red-400 border-red-500/30",      // Blackout
-  1: "bg-orange-500/20 text-orange-400 border-orange-500/30", // Incorrect
-  2: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30", // Incorrect but recalled
-  3: "bg-blue-500/20 text-blue-400 border-blue-500/30",    // Correct with difficulty
-  4: "bg-green-500/20 text-green-400 border-green-500/30", // Correct with hesitation
-  5: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", // Perfect
-};
-
-const difficultyLabels = {
-  0: "Blackout",
-  1: "Incorrect",
-  2: "Hard Recall",
-  3: "Correct",
-  4: "Easy",
-  5: "Perfect",
-};
-
-const difficultyIcons: Record<number, LucideIcon> = {
-  0: RotateCcw,
-  1: Target,
-  2: Brain,
-  3: Zap,
-  4: Zap,
-  5: Zap,
-};
+import { sm2 } from "@/utils/sm2";
+import { useDecks } from "@/providers/decks-provider";
 
 const fetcher = (endpoint: string) => fetch(endpoint).then((r) => r.json());
 
+const difficultyMap = {
+  again: 0,
+  hard: 2,
+  good: 4,
+  easy: 5,
+};
+
 export function FlashcardsView() {
   const { id } = useParams();
+  const { dispatch, selectedDeck } = useDecks();
 
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [showBack, setShowBack] = useState(false);
@@ -61,7 +37,8 @@ export function FlashcardsView() {
   const {
     data: flashcards = [],
     error,
-    isLoading
+    isLoading,
+    mutate  // Add mutate here
   } = useSWR<Flashcard[]>(`/api/flashcards?deckId=${id}`, fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
@@ -76,13 +53,6 @@ export function FlashcardsView() {
   const currentCard = flashcards[currentCardIndex];
   const progress = ((currentCardIndex + 1) / flashcards.length) * 100;
 
-  const handleNextCard = () => {
-    setShowBack(false);
-    if (currentCardIndex < flashcards.length - 1) {
-      setCurrentCardIndex(currentCardIndex + 1);
-    }
-  };
-
   const handlePrevCard = () => {
     setShowBack(false);
     if (currentCardIndex > 0) {
@@ -92,11 +62,38 @@ export function FlashcardsView() {
 
   const handleAnswer = (difficulty: "again" | "hard" | "good" | "easy") => {
     setStudiedCards((prev) => new Set([...prev, currentCard.id]));
-    // In a real app, this would update the card's scheduling
-    handleNextCard();
+    handleNextCard(difficultyMap[difficulty]);
   };
 
-  const DifficultyIcon = difficultyIcons[currentCard.difficulty];
+  const handleNextCard = (quality: number) => {
+    const { interval, repetitions, easeFactor } = sm2(
+      quality,
+      currentCard.repetitions,
+      currentCard.interval,
+      currentCard.easeFactor
+    );
+
+    const data: Flashcard = {
+      ...currentCard,
+      difficulty: quality,
+      interval,
+      repetitions,
+      easeFactor,
+      lastReviewed: new Date(),
+      nextReview: new Date(Date.now() + interval * 24 * 60 * 60 * 1000),
+    };
+
+    dispatch({
+      type: "UPDATE_FLASHCARD",
+      flashcard: data,
+      deckId: id as string
+    });
+
+    setShowBack(false);
+    if (currentCardIndex < flashcards.length - 1) {
+      setCurrentCardIndex(currentCardIndex + 1);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -108,7 +105,7 @@ export function FlashcardsView() {
             <DifficultyBadge difficulty={currentCard.difficulty} />
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Clock className="w-3 h-3" />
-              Due: {currentCard.nextReview?.toLocaleDateString()}
+              Due: {new Date(currentCard.nextReview!).toLocaleDateString()}
             </div>
           </div>
           <Button
@@ -149,21 +146,6 @@ export function FlashcardsView() {
               </div>
             )}
           </div>
-        </div>
-
-        {/* Card Footer */}
-        <div className="flex items-center justify-between pt-6 border-t border-border/30">
-          {/* <div className="flex gap-2">
-            {currentCard.tags.map((tag) => (
-              <Badge key={tag} className="text-xs">
-                {tag}
-              </Badge>
-            ))}
-          </div> */}
-          {/* <div className="text-xs text-muted-foreground space-y-1">
-            <p>Interval: {currentCard.interval} days</p>
-            <p>Ease: {currentCard.easeFactor}</p>
-          </div> */}
         </div>
 
         {/* Progress Bar */}
