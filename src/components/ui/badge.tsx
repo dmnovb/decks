@@ -14,13 +14,13 @@ const badgeVariants = cva(
         success:
           "bg-chart-2/30 text-chart-2 border-chart-2/50 hover:bg-chart-2/40 hover:border-chart-2/60 transition-all",
         warning:
-          "border-transparent bg-amber-500 text-white [a&]:hover:bg-warning/90",
+          "border-amber-500 bg-amber-500/10 text-amber-500 [a&]:hover:bg-amber-500/20",
         info:
-          "border-transparent bg-sky-500 text-white [a&]:hover:bg-info/90",
+          "border-transparent bg-sky-500/10 text-sky-500 [a&]:hover:bg-sky-500/20",
         danger:
-          "border-transparent bg-rose-500 text-white [a&]:hover:bg-danger/90",
+          "border-transparent bg-rose-500/10 text-rose-500 [a&]:hover:bg-rose-500/20",
         blackout:
-          "border-transparent bg-gray-500 text-white [a&]:hover:bg-blackout/90",
+          "bg-destructive/20 text-destructive-foreground text-destructive border-destructive/40",
         secondary:
           "border-transparent bg-purple-500 text-white [a&]:hover:bg-secondary/90",
         destructive:

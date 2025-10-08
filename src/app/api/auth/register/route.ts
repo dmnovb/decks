@@ -1,4 +1,5 @@
-import { createUser, getUserByEmail } from "@/lib/auth/helpers";
+import { createUser, generateToken, getUserByEmail } from "@/lib/auth/helpers";
+import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -22,7 +23,23 @@ export async function POST(request: NextRequest) {
         }
         const user = await createUser(name, password, email)
 
-        return Response.json({ user }, { status: 201 })
+        const token = generateToken({
+            userId: user.id,
+            email: user.email
+        })
+
+            ; (await cookies()).set('auth-token', token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 7 * 24 * 60 * 60
+            })
+
+        return Response.json({
+            id: user.id,
+            email: user.email,
+            name: user.name
+        }, { status: 201 })
 
     } catch (error) {
         console.error('Registration error:', error)

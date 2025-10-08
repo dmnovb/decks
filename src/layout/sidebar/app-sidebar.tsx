@@ -21,6 +21,9 @@ import { useRouter } from "next/navigation";
 import useDeleteDeck from "@/hooks/use-delete-deck";
 import CreateNew from "./create-new";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Folder } from "lucide-react";
 
 export const AppSidebar = () => {
   const { isLoading, state } = useDecks();
@@ -64,6 +67,27 @@ export const AppSidebar = () => {
         <SidebarGroup>
           <SidebarGroupLabel>Your Decks</SidebarGroupLabel>
           <SidebarGroupContent>
+            {decks.length === 0 && (
+              <Empty className="p-0">
+                <EmptyHeader>
+                  <EmptyMedia>
+                    <Folder className="text-primary bg-primary/10 p-2 rounded-sm box-content" />
+                  </EmptyMedia>
+                  <EmptyTitle>No Decks Yet</EmptyTitle>
+                  <EmptyDescription>
+                    You haven&apos;t created any decks yet. Get started by creating
+                    your first deck.
+                  </EmptyDescription>
+                </EmptyHeader>
+                <EmptyContent>
+                  <div className="flex flex-col gap-2">
+                    <CreateNew />
+                    <Button variant="outline">Import Deck</Button>
+                  </div>
+                </EmptyContent>
+              </Empty>
+            )}
+
             {!isLoading ? (
               <SidebarMenu>
                 {decks?.map(({ id, title, description }) => (
