@@ -32,7 +32,7 @@ import { Flashcard } from "@/generated/prisma";
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 
-export function Dashboard() {
+function Dashboard() {
   const { state } = useDecks();
   const router = useRouter();
 

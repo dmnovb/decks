@@ -18,7 +18,7 @@ const useDeleteDeck = () => {
 
       dispatch({ type: "DELETE", id });
 
-      toast.success('Deck deleted.')
+      toast.success("Deck deleted.");
     } catch (error) {
       setError(error);
     } finally {

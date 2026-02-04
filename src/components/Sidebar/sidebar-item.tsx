@@ -1,9 +1,15 @@
 import { FoldersIcon, Pencil, Trash } from "lucide-react";
 
 import Link from "next/link";
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "../ui/context-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "../ui/context-menu";
 import { SidebarMenuButton, SidebarMenuItem } from "../ui/sidebar";
 import { useDecks } from "@/providers/decks-provider";
+import { truncate } from "lodash";
 
 interface Props {
   title: string;
@@ -21,13 +27,18 @@ export function SidebarItem({ onEvent, title, description, id }: Props) {
         <Link href={`/decks/${id}`} onClick={() => selectDeck(id)}>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
-              <div className={`cursor-pointer h-full flex items-center ${selectedDeck?.id === id ? "bg-background-2" : ""}`}>
+              <div
+                className={`cursor-pointer h-full flex items-center ${selectedDeck?.id === id ? "bg-background-2" : ""}`}
+              >
                 <FoldersIcon className="text-primary bg-primary/10 p-2 rounded-sm box-content" />
                 <div className="flex flex-col">
-                  <span>{title}</span>
+                  <span className="">{title}</span>
                   {description && (
-                    <span className="text-[12px] antialiased text-muted">
-                      {description}
+                    <span
+                      className="text-[12px] antialiased text-muted"
+                      title={description}
+                    >
+                      {truncate(description, { length: 48 })}
                     </span>
                   )}
                 </div>
@@ -47,4 +58,4 @@ export function SidebarItem({ onEvent, title, description, id }: Props) {
       </ContextMenuContent>
     </ContextMenu>
   );
-};
+}

@@ -1,5 +1,5 @@
 import React from "react";
-import { SidebarMenuSubButton, SidebarMenuSubItem } from "./ui/sidebar";
+import { SidebarMenuSubButton, SidebarMenuSubItem } from "@/components/ui/sidebar";
 
 interface Props {
   title?: string;

@@ -5,7 +5,6 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/providers/auth-provider"
 import { Layers } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { ChangeEvent, FormEvent, useState } from "react"
 import { FaGoogle, FaGithub } from "react-icons/fa";
 
@@ -80,8 +79,6 @@ export default Login
 const LoginContent = () => {
     const { login, isLoading } = useAuth()
 
-    const router = useRouter()
-
     const [data, setData] = useState({
         email: '',
         password: ''
@@ -94,7 +91,6 @@ const LoginContent = () => {
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         await login(data.email, data.password)
-        router.push('/')
     }
 
     return (
@@ -142,9 +138,7 @@ const LoginContent = () => {
 }
 
 const SignUpContent = () => {
-    const { register } = useAuth()
-
-    const router = useRouter()
+    const { register, isLoading } = useAuth()
 
     const [data, setData] = useState({
         name: '',
@@ -160,7 +154,6 @@ const SignUpContent = () => {
         e.preventDefault()
         const { name, password, email } = data
         await register(name, password, email)
-        router.push('/')
     }
 
     return (
@@ -199,7 +192,7 @@ const SignUpContent = () => {
                     />
                 </div>
 
-                <Button type="submit">
+                <Button disabled={isLoading} type="submit">
                     SIGN UP
                 </Button>
 

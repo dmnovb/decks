@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createPerplexity } from '@ai-sdk/perplexity'
-import { smoothStream, streamText } from 'ai'
+import { streamText } from 'ai'
 
 const pplx = createPerplexity({
     apiKey: process.env.PERPLEXITY_API_KEY!

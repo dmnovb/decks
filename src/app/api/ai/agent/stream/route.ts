@@ -134,7 +134,7 @@ const functions = [
 async function executeFunctions(
   functionName: string,
   args: any,
-  userId: string,
+  userId: string
 ) {
   switch (functionName) {
     case "create_deck": {
@@ -247,27 +247,34 @@ async function executeFunctions(
 }
 
 export async function POST(request: NextRequest) {
+  const encoder = new TextEncoder();
+
+  // Helper to send SSE events
+  const sendEvent = (
+    controller: ReadableStreamDefaultController,
+    event: string,
+    data: any
+  ) => {
+    controller.enqueue(
+      encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+    );
+  };
+
   try {
     // Verify authentication
     const token = request.cookies.get("auth-token")?.value;
     if (!token) {
       return Response.json(
-        {
-          success: false,
-          error: "Authentication required",
-        },
-        { status: 401 },
+        { success: false, error: "Authentication required" },
+        { status: 401 }
       );
     }
 
     const payload = verifyToken(token) as { userId: string } | null;
     if (!payload) {
       return Response.json(
-        {
-          success: false,
-          error: "Invalid token",
-        },
-        { status: 401 },
+        { success: false, error: "Invalid token" },
+        { status: 401 }
       );
     }
 
@@ -283,11 +290,8 @@ export async function POST(request: NextRequest) {
 
     if (!message) {
       return Response.json(
-        {
-          success: false,
-          error: "Message is required",
-        },
-        { status: 400 },
+        { success: false, error: "Message is required" },
+        { status: 400 }
       );
     }
 
@@ -320,62 +324,113 @@ export async function POST(request: NextRequest) {
       history: geminiHistory,
     });
 
-    let result = await chat.sendMessage(message);
-    let response = result.response;
-
-    // Handle function calls
-    const functionCalls = response.functionCalls();
-    let actionsPerformed: string[] = [];
-
-    if (functionCalls && functionCalls.length > 0) {
-      const functionResults = [];
-
-      for (const call of functionCalls) {
-        console.log("Executing function:", call.name, call.args);
+    const stream = new ReadableStream({
+      async start(controller) {
         try {
-          const result = await executeFunctions(call.name, call.args, userId);
-          functionResults.push({
-            functionResponse: {
-              name: call.name,
-              response: result,
-            },
+          // First, send initial message to check for function calls
+          let result = await chat.sendMessage(message);
+          let response = result.response;
+
+          // Handle function calls
+          const functionCalls = response.functionCalls();
+          let actionsPerformed: string[] = [];
+
+          if (functionCalls && functionCalls.length > 0) {
+            // Notify client that we're executing functions
+            sendEvent(controller, "function_start", {
+              functions: functionCalls.map((f) => f.name),
+            });
+
+            const functionResults = [];
+
+            for (const call of functionCalls) {
+              console.log("Executing function:", call.name, call.args);
+              try {
+                const fnResult = await executeFunctions(
+                  call.name,
+                  call.args,
+                  userId
+                );
+                functionResults.push({
+                  functionResponse: {
+                    name: call.name,
+                    response: fnResult,
+                  },
+                });
+                actionsPerformed.push(call.name);
+              } catch (error) {
+                console.error("Function execution error:", error);
+                functionResults.push({
+                  functionResponse: {
+                    name: call.name,
+                    response: {
+                      success: false,
+                      error: (error as Error).message,
+                    },
+                  },
+                });
+              }
+            }
+
+            // Notify client that functions completed
+            sendEvent(controller, "function_complete", {
+              actions: actionsPerformed,
+            });
+
+            // Now stream the final response after function calls
+            const streamResult = await chat.sendMessageStream(functionResults);
+
+            for await (const chunk of streamResult.stream) {
+              const text = chunk.text();
+              if (text) {
+                sendEvent(controller, "text", { text });
+              }
+            }
+          } else {
+            // No function calls, stream the response directly
+            // Re-send with streaming
+            const streamResult = await chat.sendMessageStream(message);
+
+            for await (const chunk of streamResult.stream) {
+              const text = chunk.text();
+              if (text) {
+                sendEvent(controller, "text", { text });
+              }
+            }
+          }
+
+          // Send completion event
+          sendEvent(controller, "done", {
+            actionsPerformed,
+            timestamp: new Date().toISOString(),
           });
 
-          // Track what actions were performed
-          actionsPerformed.push(call.name);
+          controller.close();
         } catch (error) {
-          console.error("Function execution error:", error);
-          functionResults.push({
-            functionResponse: {
-              name: call.name,
-              response: {
-                success: false,
-                error: (error as Error).message,
-              },
-            },
+          console.error("Streaming error:", error);
+          sendEvent(controller, "error", {
+            error: (error as Error).message,
           });
+          controller.close();
         }
-      }
+      },
+    });
 
-      // Send function results back to the model
-      result = await chat.sendMessage(functionResults);
-      response = result.response;
-    }
-
-    return Response.json({
-      success: true,
-      response: response.text(),
-      actionsPerformed,
-      timestamp: new Date().toISOString(),
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
     });
   } catch (error) {
-    console.error("Agent API Error:", error);
+    console.error("Agent Stream API Error:", error);
     return Response.json(
       {
         success: false,
         error: (error as Error).message || "Failed to process request",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

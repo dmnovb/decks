@@ -16,6 +16,8 @@ import useSWR from "swr";
 import DifficultyBadge from "../difficulty-badge";
 import { sm2 } from "@/utils/sm2";
 import { useDecks } from "@/providers/decks-provider";
+import useUpdateFlashcard from "@/hooks/use-update-flashcard";
+import { toast } from "sonner";
 
 const fetcher = (endpoint: string) => fetch(endpoint).then((r) => r.json());
 
@@ -29,6 +31,7 @@ const difficultyMap = {
 export function FlashcardsView() {
   const { id } = useParams();
   const { dispatch, selectedDeck } = useDecks();
+  const { updateFlashcard, isLoading: isSaving } = useUpdateFlashcard();
 
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [showBack, setShowBack] = useState(false);
@@ -65,7 +68,8 @@ export function FlashcardsView() {
     handleNextCard(difficultyMap[difficulty]);
   };
 
-  const handleNextCard = (quality: number) => {
+  const handleNextCard = async (quality: number) => {
+    // Calculate SM2 algorithm values
     const { interval, repetitions, easeFactor } = sm2(
       quality,
       currentCard.repetitions,
@@ -73,7 +77,8 @@ export function FlashcardsView() {
       currentCard.easeFactor
     );
 
-    const data: Flashcard = {
+    // Prepare updated flashcard data
+    const updatedCard: Flashcard = {
       ...currentCard,
       difficulty: quality,
       interval,
@@ -83,15 +88,25 @@ export function FlashcardsView() {
       nextReview: new Date(Date.now() + interval * 24 * 60 * 60 * 1000),
     };
 
-    dispatch({
-      type: "UPDATE_FLASHCARD",
-      flashcard: data,
-      deckId: id as string
-    });
+    try {
+      // Save to database with statistics calculation
+      await updateFlashcard({
+        flashcard: updatedCard,
+        quality,
+      });
 
-    setShowBack(false);
-    if (currentCardIndex < flashcards.length - 1) {
-      setCurrentCardIndex(currentCardIndex + 1);
+      // Move to next card only after successful save
+      setShowBack(false);
+      if (currentCardIndex < flashcards.length - 1) {
+        setCurrentCardIndex(currentCardIndex + 1);
+      } else {
+        // All cards completed
+        toast.success("Study session complete! Great work! 🎉", { duration: 3000 });
+      }
+    } catch (error) {
+      // Error already handled by hook with toast notification
+      // Don't move to next card on error
+      console.error("Failed to save card progress:", error);
     }
   };
 
@@ -178,30 +193,34 @@ export function FlashcardsView() {
           <Button
             variant="outline"
             onClick={() => handleAnswer("again")}
-            className="flex-1 sm:flex-none bg-rose-500/10 border-rose-400/30 text-rose-300 hover:bg-rose-500/20 hover:border-rose-400/50 hover:text-rose-200"
+            disabled={isSaving}
+            className="flex-1 sm:flex-none bg-rose-500/10 border-rose-400/30 text-rose-300 hover:bg-rose-500/20 hover:border-rose-400/50 hover:text-rose-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Again
+            {isSaving ? "Saving..." : "Again"}
           </Button>
           <Button
             variant="outline"
             onClick={() => handleAnswer("hard")}
-            className="flex-1 sm:flex-none bg-amber-500/10 border-amber-400/30 text-amber-300 hover:bg-amber-500/20 hover:border-amber-400/50 hover:text-amber-200"
+            disabled={isSaving}
+            className="flex-1 sm:flex-none bg-amber-500/10 border-amber-400/30 text-amber-300 hover:bg-amber-500/20 hover:border-amber-400/50 hover:text-amber-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Hard
+            {isSaving ? "Saving..." : "Hard"}
           </Button>
           <Button
             variant="outline"
             onClick={() => handleAnswer("good")}
-            className="flex-1 sm:flex-none bg-emerald-500/10 border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-400/50 hover:text-emerald-200"
+            disabled={isSaving}
+            className="flex-1 sm:flex-none bg-emerald-500/10 border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-400/50 hover:text-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Good
+            {isSaving ? "Saving..." : "Good"}
           </Button>
           <Button
             variant="outline"
             onClick={() => handleAnswer("easy")}
-            className="flex-1 sm:flex-none bg-sky-500/10 border-sky-400/30 text-sky-300 hover:bg-sky-500/20 hover:border-sky-400/50 hover:text-sky-200"
+            disabled={isSaving}
+            className="flex-1 sm:flex-none bg-sky-500/10 border-sky-400/30 text-sky-300 hover:bg-sky-500/20 hover:border-sky-400/50 hover:text-sky-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Easy
+            {isSaving ? "Saving..." : "Easy"}
           </Button>
         </div>
       </div>

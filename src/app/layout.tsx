@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "@/components/ui/sonner"
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/layout/sidebar/app-sidebar";
-import { AuthProvider, DecksProvider } from "@/providers";
+import { AuthProvider } from "@/providers";
 import { AuthGuard } from "@/components/auth-guard";
 
 import "./globals.css";
@@ -34,13 +31,13 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-scroll`}
       >
         <AuthProvider>
-          <AuthGuard>
-            {children}
-          </AuthGuard>
+          <AuthGuard>{children}</AuthGuard>
         </AuthProvider>
       </body>
     </html>
   );
 }
 
-{/* <SidebarTrigger /> */ }
+{
+  /* <SidebarTrigger /> */
+}

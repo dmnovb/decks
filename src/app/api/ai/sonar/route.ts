@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
         }
 
         const { text, finishReason, usage } = await generateText({
-            model: pplx(model as any),
+            model: pplx(model),
             system,
             temperature,
             maxOutputTokens,

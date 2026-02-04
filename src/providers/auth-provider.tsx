@@ -34,6 +34,11 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     }, [])
 
     const checkAuth = async () => {
+        const userData = localStorage.getItem('user-data')
+        if (userData) {
+            setUser(JSON.parse(userData))
+        }
+
         try {
             const response = await fetch('/api/auth/me', {
                 credentials: 'include'
@@ -68,10 +73,11 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
                 setUser(userData)
                 router.push('/')
                 toast.success('Logged in.')
-
+                localStorage.setItem('user-data', JSON.stringify(userData))
                 return { success: true }
             } else {
                 const error = await res.json()
+                toast.error(error.message || 'Login failed')
                 return { success: false, error: error.message }
             }
         } catch (error) {
@@ -106,13 +112,17 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
             if (res.ok) {
                 const userData = await res.json()
                 setUser(userData)
+                localStorage.setItem('user-data', JSON.stringify(userData))
                 router.push('/')
+                toast.success('Account created.')
                 return { success: true }
             } else {
                 const error = await res.json()
+                toast.error(error.message || 'Registration failed')
                 return { success: false, error: error.message }
             }
         } catch (error) {
+            toast.error('Registration failed')
             return { success: false, error: 'Registration failed' }
         }
     }
