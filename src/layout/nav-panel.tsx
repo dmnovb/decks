@@ -19,15 +19,45 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { useState, FormEvent } from "react";
 import useDeleteDeck from "@/hooks/use-delete-deck";
 
 export function NavPanel() {
-  const { state, isLoading } = useDecks();
+  const { state, isLoading, createDeck } = useDecks();
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const { decks } = state;
   const { handleDelete } = useDeleteDeck();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const openDialog = () => {
+    setTitle("");
+    setDescription("");
+    setDialogOpen(true);
+  };
+
+  const handleCreate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    setCreating(true);
+    const deck = await createDeck(title.trim(), description.trim() || undefined);
+    setCreating(false);
+    setDialogOpen(false);
+    if (deck?.id) router.push(`/decks/${deck.id}`);
+  };
 
   return (
     <div className="flex flex-col w-60 shrink-0 h-full bg-background-1 border-r border-border">
@@ -37,7 +67,7 @@ export function NavPanel() {
           ALCOVE
         </span>
         <button
-          onClick={() => router.push("/")}
+          onClick={openDialog}
           className="flex items-center justify-center w-6 h-6 rounded-sm text-muted-foreground hover:text-foreground hover:bg-background-2 transition-colors"
           title="New deck"
         >
@@ -61,12 +91,12 @@ export function NavPanel() {
         {!isLoading && decks.length === 0 && (
           <div className="px-4 py-6 text-center">
             <p className="text-xs text-muted-foreground">No decks yet.</p>
-            <Link
-              href="/"
+            <button
+              onClick={openDialog}
               className="text-xs text-foreground hover:underline mt-1 inline-block"
             >
               Create one
-            </Link>
+            </button>
           </div>
         )}
 
@@ -142,6 +172,36 @@ export function NavPanel() {
           </DropdownMenu>
         </div>
       )}
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>New deck</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreate} className="flex flex-col gap-4 pt-1">
+            <div className="flex flex-col gap-2">
+              <Label>Title</Label>
+              <Input
+                autoFocus
+                placeholder="e.g. Spanish Basics"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Description <span className="text-muted-foreground">(optional)</span></Label>
+              <Input
+                placeholder="What's this deck for?"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+            <Button type="submit" disabled={!title.trim() || creating}>
+              {creating ? "Creating…" : "Create deck"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -25,18 +25,18 @@ export function FlashCard({ card }: { card: FlashCardType }) {
                 <Separator />
 
                 <div className="p-16 text-center flex flex-col gap-4">
-                    <span className="text-sm text-muted">
+                    <span className="text-sm text-muted-foreground">
                         Front
                     </span>
 
-                    <span>
+                    <span className="text-foreground">
                         {card.front}
                     </span>
                 </div>
 
                 <Separator />
 
-                <div className="text-xs text-muted flex justify-between">
+                <div className="text-xs text-muted-foreground flex justify-between">
                     <div>
                         due {new Date(card.nextReview!).toDateString()}
                     </div>

@@ -113,6 +113,7 @@ interface DecksContextValue {
   refreshDecks: () => Promise<void>;
   selectDeck: (deckId: string) => void;
   selectedDeck: Deck | null;
+  createDeck: (title: string, description?: string) => Promise<Deck | null>;
 }
 
 export const DecksContext = createContext<DecksContextValue>({
@@ -123,6 +124,7 @@ export const DecksContext = createContext<DecksContextValue>({
   refreshDecks: async () => { },
   selectDeck: () => { },
   selectedDeck: null,
+  createDeck: async () => null,
 });
 
 const fetcher = (endpoint: string) => fetch(endpoint).then((r) => r.json());
@@ -150,6 +152,23 @@ export const DecksProvider = ({ children }: PropsWithChildren) => {
     dispatch({ type: "SELECT", deckId });
   };
 
+  const createDeck = async (title: string, description?: string): Promise<Deck | null> => {
+    try {
+      const res = await fetch("/api/decks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ title, description }),
+      });
+      if (!res.ok) return null;
+      const deck: Deck = await res.json();
+      dispatch({ type: "ADD", deck });
+      return deck;
+    } catch {
+      return null;
+    }
+  };
+
   return (
     <DecksContext.Provider value={{
       state,
@@ -159,6 +178,7 @@ export const DecksProvider = ({ children }: PropsWithChildren) => {
       refreshDecks,
       selectDeck,
       selectedDeck: state.selectedDeck,
+      createDeck,
     }}
     >
       {children}
