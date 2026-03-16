@@ -73,16 +73,16 @@ export function Title({ amount, title, deckId, onModeChange, mode }: TitleProps)
 
             <div className="flex flex-row gap-2">
                 <Tabs value={mode} onValueChange={(value) => onModeChange(value as Mode)}>
-                    <TabsList className="bg-background-2 border border-primary/20 p-1 h-9">
+                    <TabsList className="bg-background-2 border border-border p-1 h-9">
                         <TabsTrigger
                             value="normal"
-                            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:font-semibold hover:bg-background-3 transition-all duration-200 px-3 py-1.5 text-sm font-medium rounded-md"
+                            className="data-[state=active]:bg-background-3 data-[state=active]:text-foreground data-[state=active]:font-medium hover:bg-background-3 transition-all duration-200 px-3 py-1.5 text-sm font-medium rounded-md"
                         >
                             Normal Mode
                         </TabsTrigger>
                         <TabsTrigger
                             value="study"
-                            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:font-semibold hover:bg-background-3 transition-all duration-200 px-3 py-1.5 text-sm font-medium rounded-md"
+                            className="data-[state=active]:bg-background-3 data-[state=active]:text-foreground data-[state=active]:font-medium hover:bg-background-3 transition-all duration-200 px-3 py-1.5 text-sm font-medium rounded-md"
                         >
                             Study Mode
                         </TabsTrigger>

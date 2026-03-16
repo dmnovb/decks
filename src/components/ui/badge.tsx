@@ -10,23 +10,23 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default:
-          "border-transparent bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
+          "border-border bg-background-2 text-muted-foreground",
         success:
-          "bg-chart-2/30 text-chart-2 border-chart-2/50 hover:bg-chart-2/40 hover:border-chart-2/60 transition-all",
+          "bg-success/10 text-success border-success/20",
         warning:
-          "border-amber-500 bg-amber-500/10 text-amber-500 [a&]:hover:bg-amber-500/20",
+          "bg-warning/10 text-warning border-warning/20",
         info:
-          "border-transparent bg-sky-500/10 text-sky-500 [a&]:hover:bg-sky-500/20",
+          "bg-background-2 text-muted-foreground border-border",
         danger:
-          "border-transparent bg-rose-500/10 text-rose-500 [a&]:hover:bg-rose-500/20",
+          "bg-destructive/10 text-destructive border-destructive/20",
         blackout:
-          "bg-destructive/20 text-destructive-foreground text-destructive border-destructive/40",
+          "bg-destructive/10 text-destructive border-destructive/20",
         secondary:
-          "border-transparent bg-purple-500 text-white [a&]:hover:bg-secondary/90",
+          "border-border bg-background-3 text-muted-foreground",
         destructive:
-          "border-transparent bg-red-500 text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+          "bg-destructive/10 text-destructive border-destructive/20",
         outline:
-          "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+          "border-border text-muted-foreground bg-transparent",
       },
     },
     defaultVariants: {

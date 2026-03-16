@@ -31,7 +31,7 @@ export async function GET(_request: Request, context: RouteContext) {
         if (!conversation) return Response.json({ message: 'Not found' }, { status: 404 })
         return Response.json({ success: true, conversation })
     } catch (error) {
-        return Response.json({ success: false, error: (error as Error).message }, { status: 500 })
+        return Response.json({ success: false, error: "Internal server error" }, { status: 500 })
     }
 }
 
@@ -52,6 +52,7 @@ export async function POST(request: Request, context: RouteContext) {
         const body = await request.json().catch(() => ({}))
         const { role, content } = body || {}
         if (!role || !content) return Response.json({ message: 'role and content are required' }, { status: 400 })
+        if (!['user', 'assistant'].includes(role)) return Response.json({ message: 'Invalid role' }, { status: 400 })
 
         const message = await prisma.message.create({
             data: { conversationId: id, role, content }
@@ -61,7 +62,7 @@ export async function POST(request: Request, context: RouteContext) {
 
         return Response.json({ success: true, message })
     } catch (error) {
-        return Response.json({ success: false, error: (error as Error).message }, { status: 500 })
+        return Response.json({ success: false, error: "Internal server error" }, { status: 500 })
     }
 }
 
@@ -83,7 +84,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
         return Response.json({ success: true })
     } catch (error) {
-        return Response.json({ success: false, error: (error as Error).message }, { status: 500 })
+        return Response.json({ success: false, error: "Internal server error" }, { status: 500 })
     }
 }
 
@@ -111,6 +112,6 @@ export async function PATCH(request: Request, context: RouteContext) {
 
         return Response.json({ success: true, conversation })
     } catch (error) {
-        return Response.json({ success: false, error: (error as Error).message }, { status: 500 })
+        return Response.json({ success: false, error: "Internal server error" }, { status: 500 })
     }
 }

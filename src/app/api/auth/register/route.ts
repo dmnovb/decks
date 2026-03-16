@@ -8,9 +8,18 @@ export async function POST(request: NextRequest) {
 
         if (!email || !password) {
             return Response.json(
-                { message: 'Invalid input!' },
+                { message: 'Email and password are required' },
                 { status: 400 }
             )
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(email)) {
+            return Response.json({ message: 'Invalid email format' }, { status: 400 })
+        }
+
+        if (password.length < 8) {
+            return Response.json({ message: 'Password must be at least 8 characters' }, { status: 400 })
         }
 
         const existingUser = await getUserByEmail(email)

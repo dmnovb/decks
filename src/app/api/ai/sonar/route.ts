@@ -1,49 +1,47 @@
-import { NextRequest } from 'next/server'
-import { createPerplexity } from '@ai-sdk/perplexity'
-import { generateText } from 'ai'
+import Anthropic from "@anthropic-ai/sdk";
+import { NextRequest } from "next/server";
+import { verifyToken } from "@/lib/auth/helpers";
 
-const pplx = createPerplexity({
-    apiKey: process.env.PERPLEXITY_API_KEY!
-})
+const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
+
+const MODEL = "claude-sonnet-4-6";
+const MAX_TOKENS = 2048;
+const TEMPERATURE = 0.7;
 
 export async function POST(request: NextRequest) {
-    try {
-        const body = await request.json().catch(() => ({}))
-        const {
-            prompt,
-            system,
-            temperature = 0.7,
-            maxOutputTokens = 2048,
-            model = 'sonar-pro'
-        } = body || {}
+  const token = request.cookies.get("auth-token")?.value;
+  if (!token || !verifyToken(token)) {
+    return Response.json({ success: false, error: "Authentication required" }, { status: 401 });
+  }
 
-        if (!prompt || typeof prompt !== 'string') {
-            return Response.json({
-                success: false,
-                error: 'prompt is required'
-            }, { status: 400 })
-        }
+  try {
+    const body = await request.json().catch(() => ({}));
+    const { prompt, system } = body || {};
 
-        const { text, finishReason, usage } = await generateText({
-            model: pplx(model),
-            system,
-            temperature,
-            maxOutputTokens,
-            prompt
-        })
-
-        return Response.json({
-            success: true,
-            response: text,
-            finishReason,
-            usage,
-            model
-        })
-    } catch (error) {
-        console.error('Perplexity API Error:', error)
-        return Response.json({
-            success: false,
-            error: (error as Error).message || 'Failed to process request'
-        }, { status: 500 })
+    if (!prompt || typeof prompt !== "string") {
+      return Response.json({ success: false, error: "prompt is required" }, { status: 400 });
     }
-} 
+
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      system,
+      temperature: TEMPERATURE,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const text = response.content[0].type === "text" ? response.content[0].text : "";
+
+    return Response.json({
+      success: true,
+      response: text,
+      finishReason: response.stop_reason,
+    });
+  } catch (error) {
+    console.error("Claude API Error:", error);
+    return Response.json(
+      { success: false, error: "Failed to process request" },
+      { status: 500 },
+    );
+  }
+}

@@ -1,127 +1,110 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
+import { verifyToken } from "@/lib/auth/helpers";
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
+const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
+
+const MODEL = "claude-sonnet-4-6";
+const MAX_TOKENS = 2048;
+const TEMPERATURE = 0.7;
+
+function getAuthenticatedUserId(request: NextRequest): string | null {
+  const token = request.cookies.get("auth-token")?.value;
+  if (!token) return null;
+  const payload = verifyToken(token);
+  return payload?.userId ?? null;
+}
 
 export async function POST(request: NextRequest) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) {
+    return Response.json({ success: false, error: "Authentication required" }, { status: 401 });
+  }
+
   try {
-    const {
-      message,
-      systemPrompt,
-      context,
-      history,
-      model = "gemini-flash-latest",
-      temperature = 0.7,
-      maxTokens = 2048,
-    } = await request.json();
+    const { message, systemPrompt, context, history } = await request.json();
 
     if (!message) {
       return Response.json(
-        {
-          success: false,
-          error: "Message is required",
-        },
+        { success: false, error: "Message is required" },
         { status: 400 },
       );
     }
 
-    const aiModel = genAI.getGenerativeModel({
-      model,
-      generationConfig: {
-        temperature,
-        maxOutputTokens: maxTokens,
-      },
+    let system = "";
+    if (systemPrompt) system += `System Instructions: ${systemPrompt}\n\n`;
+    if (context) system += `Context: ${context}\n\n`;
+
+    const messages: Anthropic.MessageParam[] = [];
+    if (history && Array.isArray(history)) {
+      for (const msg of history) {
+        messages.push({ role: msg.role, content: msg.content });
+      }
+    }
+    messages.push({ role: "user", content: message });
+
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      system: system || undefined,
+      messages,
+      temperature: TEMPERATURE,
     });
 
-    // Build the conversation history if provided
-    let chat;
-    if (history && Array.isArray(history)) {
-      // Convert history to Gemini format
-      const geminiHistory = history.map((msg) => ({
-        role: msg.role === "assistant" ? "model" : "user",
-        parts: [{ text: msg.content }],
-      }));
-
-      chat = aiModel.startChat({
-        history: geminiHistory,
-        generationConfig: {
-          temperature,
-          maxOutputTokens: maxTokens,
-        },
-      });
-
-      const result = await chat.sendMessage(message);
-      const response = await result.response;
-
-      return Response.json({
-        success: true,
-        response: response.text(),
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    // Build the full prompt with system prompt and context
-    let fullPrompt = "";
-
-    if (systemPrompt) {
-      fullPrompt += `System Instructions: ${systemPrompt}\n\n`;
-    }
-
-    if (context) {
-      fullPrompt += `Context: ${context}\n\n`;
-    }
-
-    fullPrompt += `User: ${message}`;
-
-    const result = await aiModel.generateContent(fullPrompt);
-    const response = await result.response;
+    const text = response.content[0].type === "text" ? response.content[0].text : "";
 
     return Response.json({
       success: true,
-      response: response.text(),
+      response: text,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("Gemini API Error:", error);
+    console.error("Claude API Error:", error);
     return Response.json(
-      {
-        success: false,
-        error: (error as Error).message || "Failed to process request",
-      },
+      { success: false, error: "Failed to process request" },
       { status: 500 },
     );
   }
 }
 
 export async function GET(request: NextRequest) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) {
+    return Response.json({ success: false, error: "Authentication required" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const message = searchParams.get("message");
 
   if (!message) {
     return Response.json(
-      {
-        success: false,
-        error: "Message is required",
-      },
+      { success: false, error: "Message is required" },
       { status: 400 },
     );
   }
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-flash-latest",
-    });
-    const result = await model.generateContentStream(message);
-
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          for await (const chunk of result.stream) {
-            const text = chunk.text();
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ text })}\n\n`),
-            );
+          const stream = anthropic.messages.stream({
+            model: MODEL,
+            max_tokens: MAX_TOKENS,
+            messages: [{ role: "user", content: message }],
+          });
+
+          for await (const chunk of stream) {
+            if (
+              chunk.type === "content_block_delta" &&
+              chunk.delta.type === "text_delta"
+            ) {
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ text: chunk.delta.text })}\n\n`,
+                ),
+              );
+            }
           }
           controller.close();
         } catch (error) {
@@ -140,10 +123,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Streaming Error:", error);
     return Response.json(
-      {
-        success: false,
-        error: (error as Error).message,
-      },
+      { success: false, error: "Failed to process request" },
       { status: 500 },
     );
   }

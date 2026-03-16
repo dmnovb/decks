@@ -1,17 +1,18 @@
 import bcrypt from 'bcrypt'
-import jwt, { Jwt } from 'jsonwebtoken'
+import jwt from 'jsonwebtoken'
 import prisma from "@/lib/prisma";
+
+const JWT_SECRET = process.env.JWT_SECRET
+if (!JWT_SECRET) throw new Error('JWT_SECRET environment variable is required')
 
 export const hashPassword = async (pass: string) => bcrypt.hash(pass, 12)
 export const verifyPassword = async (pass: string, hashed: string) => bcrypt.compare(pass, hashed)
 
-//@ts-ignore
-export const generateToken = (payload: any) => jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' })
+export const generateToken = (payload: object) => jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' })
 
-export const verifyToken = (token: string) => {
+export const verifyToken = (token: string): { userId: string } | null => {
     try {
-        //@ts-ignore
-        return jwt.verify(token, process.env.JWT_SECRET)
+        return jwt.verify(token, JWT_SECRET) as { userId: string }
     } catch {
         return null
     }

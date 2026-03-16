@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/providers";
 import { AuthGuard } from "@/components/auth-guard";
+import { ThemeDock } from "@/components/ui/theme-dock";
+import { Toaster } from "@/components/ui/sonner";
 
 import "./globals.css";
 
@@ -26,18 +29,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-scroll`}
       >
-        <AuthProvider>
-          <AuthGuard>{children}</AuthGuard>
-        </AuthProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem={false}
+        >
+          <AuthProvider>
+            <AuthGuard>{children}</AuthGuard>
+          </AuthProvider>
+          <ThemeDock />
+          <Toaster position="top-center" />
+        </ThemeProvider>
       </body>
     </html>
   );
-}
-
-{
-  /* <SidebarTrigger /> */
 }

@@ -19,7 +19,7 @@ export function useAI() {
           systemPrompt: options.systemPrompt,
           context: options.context,
           history: options.history,
-          model: options.model || "gemini-flash-latest",
+          model: options.model || "claude-sonnet-4-6",
           temperature: options.temperature || 0.7,
           maxTokens: options.maxTokens || 2048,
         }),
@@ -109,9 +109,9 @@ export function useAI() {
         body: JSON.stringify({
           message,
           history,
-          model: "gemini-flash-latest",
+          model: "claude-sonnet-4-6",
           temperature: 0.7,
-          maxTokens: 2048,
+          maxTokens: 4096,
         }),
       });
 
@@ -163,9 +163,9 @@ export function useAI() {
         body: JSON.stringify({
           message,
           history,
-          model: "gemini-flash-latest",
+          model: "claude-sonnet-4-6",
           temperature: 0.7,
-          maxTokens: 2048,
+          maxTokens: 4096,
         }),
       });
 
@@ -211,8 +211,7 @@ export function useAI() {
                 throw new Error(data.error);
               }
             } catch (e) {
-              // Skip invalid JSON unless it's an actual error we threw
-              if (e instanceof Error && e.message !== "Invalid JSON") {
+              if (!(e instanceof SyntaxError)) {
                 throw e;
               }
             }

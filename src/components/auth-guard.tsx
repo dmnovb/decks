@@ -3,17 +3,16 @@
 import { useAuth } from "@/providers/auth-provider";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/layout/sidebar/app-sidebar";
 import { DecksProvider } from "@/providers";
-import { Toaster } from "@/components/ui/sonner";
+import { IconRail } from "@/layout/icon-rail";
+import { NavPanel } from "@/layout/nav-panel";
 
 interface AuthGuardProps {
   children: React.ReactNode;
 }
 
 export const AuthGuard = ({ children }: AuthGuardProps) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isInitializing } = useAuth();
 
   const pathname = usePathname();
 
@@ -21,12 +20,12 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
   const isPublicRoute = publicRoutes.includes(pathname);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && !isPublicRoute) {
+    if (!isInitializing && !isAuthenticated && !isPublicRoute) {
       window.location.href = "/login";
     }
-  }, [isAuthenticated, isLoading, isPublicRoute]);
+  }, [isAuthenticated, isInitializing, isPublicRoute]);
 
-  if (isLoading) {
+  if (isInitializing) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -40,7 +39,6 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
   if (isPublicRoute) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <Toaster richColors />
         {children}
       </main>
     );
@@ -49,13 +47,13 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
   if (isAuthenticated) {
     return (
       <DecksProvider>
-        <SidebarProvider>
-          <AppSidebar />
-          <main className="p-4 flex flex-col w-full">
-            <Toaster richColors position="top-center" />
+        <div className="flex h-screen w-screen overflow-hidden bg-background">
+          <IconRail />
+          <NavPanel />
+          <main className="flex-1 flex flex-col overflow-y-auto">
             {children}
           </main>
-        </SidebarProvider>
+        </div>
       </DecksProvider>
     );
   }

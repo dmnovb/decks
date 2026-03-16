@@ -8,6 +8,7 @@ import { toast } from "sonner";
 interface Auth {
     user: User | null;
     isLoading: boolean;
+    isInitializing: boolean;
     isAuthenticated: boolean;
     login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
     logout: () => Promise<void>;
@@ -17,6 +18,7 @@ interface Auth {
 const AuthContext = createContext<Auth>({
     user: null,
     isLoading: false,
+    isInitializing: true,
     isAuthenticated: false,
     login: async () => ({ success: false }),
     logout: async () => { },
@@ -25,7 +27,8 @@ const AuthContext = createContext<Auth>({
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
     const [user, setUser] = useState<User | null>(null)
-    const [isLoading, setIsLoading] = useState(true)
+    const [isLoading, setIsLoading] = useState(false)
+    const [isInitializing, setIsInitializing] = useState(true)
 
     const router = useRouter()
 
@@ -54,7 +57,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
             console.error('Auth check failed:', error)
             setUser(null)
         } finally {
-            setIsLoading(false)
+            setIsInitializing(false)
         }
     }
 
@@ -128,7 +131,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     }
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, register, isLoading, isAuthenticated: !!user }}>
+        <AuthContext.Provider value={{ user, login, logout, register, isLoading, isInitializing, isAuthenticated: !!user }}>
             {children}
         </AuthContext.Provider>
     )

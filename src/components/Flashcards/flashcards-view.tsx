@@ -169,6 +169,13 @@ export function FlashcardsView() {
             </Button>
           </div>
         </div>
+
+        <SessionSetup
+          isOpen={showSetup}
+          onClose={() => setShowSetup(false)}
+          onStart={handleStartSession}
+          allCards={flashcards}
+        />
       </div>
     );
   }

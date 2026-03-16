@@ -25,7 +25,8 @@ export async function GET() {
 
         return Response.json({ success: true, conversations })
     } catch (error) {
-        return Response.json({ success: false, error: (error as Error).message }, { status: 500 })
+        console.error("Conversations GET error:", error)
+        return Response.json({ success: false, error: "Failed to fetch conversations" }, { status: 500 })
     }
 }
 
@@ -57,6 +58,7 @@ export async function POST(request: Request) {
 
         return Response.json({ success: true, conversation })
     } catch (error) {
-        return Response.json({ success: false, error: (error as Error).message }, { status: 500 })
+        console.error("Conversations POST error:", error)
+        return Response.json({ success: false, error: "Failed to create conversation" }, { status: 500 })
     }
-} 
+}
