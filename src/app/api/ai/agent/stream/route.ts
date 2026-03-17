@@ -1,64 +1,49 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
+const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY!, timeout: 60000, maxRetries: 0 });
 
-// Define available functions the AI can call
-const functions = [
+const tools: Anthropic.Tool[] = [
   {
+    type: "custom" as const,
     name: "create_deck",
     description: "Creates a new flashcard deck for the user",
-    parameters: {
-      type: SchemaType.OBJECT,
+    input_schema: {
+      type: "object",
       properties: {
-        title: {
-          type: SchemaType.STRING,
-          description: "The title of the deck",
-        },
+        title: { type: "string", description: "The title of the deck" },
         description: {
-          type: SchemaType.STRING,
+          type: "string",
           description: "A brief description of what this deck contains",
         },
         category: {
-          type: SchemaType.STRING,
-          description:
-            'The category or subject (e.g., "Spanish", "Japanese", "Korean")',
+          type: "string",
+          description: 'The category or subject (e.g., "Spanish", "Japanese", "Korean")',
         },
       },
       required: ["title"],
     },
   },
   {
+    type: "custom" as const,
     name: "create_flashcards",
     description:
       "Creates multiple flashcards in a specific deck. Use this when user asks to generate or create flashcards.",
-    parameters: {
-      type: SchemaType.OBJECT,
+    input_schema: {
+      type: "object",
       properties: {
-        deckId: {
-          type: SchemaType.STRING,
-          description: "The ID of the deck to add flashcards to",
-        },
+        deckId: { type: "string", description: "The ID of the deck to add flashcards to" },
         flashcards: {
-          type: SchemaType.ARRAY,
+          type: "array",
           description: "Array of flashcard objects to create",
           items: {
-            type: SchemaType.OBJECT,
+            type: "object",
             properties: {
-              front: {
-                type: SchemaType.STRING,
-                description: "The front of the card (question/prompt)",
-              },
-              back: {
-                type: SchemaType.STRING,
-                description: "The back of the card (answer)",
-              },
-              notes: {
-                type: SchemaType.STRING,
-                description: "Optional notes or additional information",
-              },
+              front: { type: "string", description: "The front of the card (question/prompt)" },
+              back: { type: "string", description: "The back of the card (answer)" },
+              notes: { type: "string", description: "Optional notes or additional information" },
             },
             required: ["front", "back"],
           },
@@ -68,33 +53,25 @@ const functions = [
     },
   },
   {
+    type: "custom" as const,
     name: "create_deck_with_flashcards",
     description:
       "Creates a new deck and populates it with flashcards in one operation. Use this when user wants a complete deck created from scratch.",
-    parameters: {
-      type: SchemaType.OBJECT,
+    input_schema: {
+      type: "object",
       properties: {
-        title: {
-          type: SchemaType.STRING,
-          description: "The title of the deck",
-        },
-        description: {
-          type: SchemaType.STRING,
-          description: "A brief description of the deck",
-        },
-        category: {
-          type: SchemaType.STRING,
-          description: "The category or subject",
-        },
+        title: { type: "string", description: "The title of the deck" },
+        description: { type: "string", description: "A brief description of the deck" },
+        category: { type: "string", description: "The category or subject" },
         flashcards: {
-          type: SchemaType.ARRAY,
+          type: "array",
           description: "Array of flashcards to create",
           items: {
-            type: SchemaType.OBJECT,
+            type: "object",
             properties: {
-              front: { type: SchemaType.STRING },
-              back: { type: SchemaType.STRING },
-              notes: { type: SchemaType.STRING },
+              front: { type: "string" },
+              back: { type: "string" },
+              notes: { type: "string" },
             },
             required: ["front", "back"],
           },
@@ -104,47 +81,32 @@ const functions = [
     },
   },
   {
+    type: "custom" as const,
     name: "list_user_decks",
     description:
       "Lists all decks belonging to the user. Use this when user asks to see their decks or asks which deck to add cards to.",
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {},
-      required: [],
-    },
+    input_schema: { type: "object", properties: {}, required: [] },
   },
   {
+    type: "custom" as const,
     name: "list_user_flashcards_in_deck",
     description:
       "Lists all flashcards belonging to a specific deck. Use this when user asks to see the flashcards in a specific deck.",
-    parameters: {
-      type: SchemaType.OBJECT,
+    input_schema: {
+      type: "object",
       properties: {
-        deckId: {
-          type: SchemaType.STRING,
-          description: "The ID of the deck to list flashcards from",
-        },
+        deckId: { type: "string", description: "The ID of the deck to list flashcards from" },
       },
       required: ["deckId"],
     },
   },
 ];
 
-// Function implementations
-async function executeFunctions(
-  functionName: string,
-  args: any,
-  userId: string
-) {
+async function executeFunctions(functionName: string, args: any, userId: string) {
   switch (functionName) {
     case "create_deck": {
       const deck = await prisma.deck.create({
-        data: {
-          title: args.title,
-          description: args.description,
-          category: args.category,
-          userId,
-        },
+        data: { title: args.title, description: args.description, category: args.category, userId },
       });
       return {
         success: true,
@@ -152,13 +114,11 @@ async function executeFunctions(
         message: `Created deck "${deck.title}" with ID ${deck.id}`,
       };
     }
-
     case "create_flashcards": {
+      const ownedDeck = await prisma.deck.findFirst({ where: { id: args.deckId, userId } });
+      if (!ownedDeck) return { success: false, error: "Deck not found or access denied" };
       const flashcards = await prisma.flashcard.createMany({
-        data: args.flashcards.map((card: any) => ({
-          ...card,
-          deckId: args.deckId,
-        })),
+        data: args.flashcards.map((card: any) => ({ ...card, deckId: args.deckId })),
       });
       return {
         success: true,
@@ -166,7 +126,6 @@ async function executeFunctions(
         message: `Created ${flashcards.count} flashcards in deck ${args.deckId}`,
       };
     }
-
     case "create_deck_with_flashcards": {
       const deck = await prisma.deck.create({
         data: {
@@ -174,13 +133,9 @@ async function executeFunctions(
           description: args.description,
           category: args.category,
           userId,
-          flashcards: {
-            create: args.flashcards,
-          },
+          flashcards: { create: args.flashcards },
         },
-        include: {
-          flashcards: true,
-        },
+        include: { flashcards: true },
       });
       return {
         success: true,
@@ -189,15 +144,10 @@ async function executeFunctions(
         message: `Created deck "${deck.title}" with ${deck.flashcards.length} flashcards`,
       };
     }
-
     case "list_user_decks": {
       const decks = await prisma.deck.findMany({
         where: { userId },
-        include: {
-          _count: {
-            select: { flashcards: true },
-          },
-        },
+        include: { _count: { select: { flashcards: true } } },
         orderBy: { createdAt: "desc" },
       });
       return {
@@ -211,36 +161,23 @@ async function executeFunctions(
         })),
       };
     }
-
     case "list_user_flashcards_in_deck": {
-      const deck = await prisma.deck.findFirst({
-        where: { id: args.deckId, userId },
-      });
-      if (!deck) {
-        return {
-          success: false,
-          error: "Deck not found or you do not have access to it",
-        };
-      }
-
-      const flashcards = await prisma.flashcard.findMany({
-        where: { deckId: args.deckId },
-      });
-
+      const deck = await prisma.deck.findFirst({ where: { id: args.deckId, userId } });
+      if (!deck) return { success: false, error: "Deck not found or you do not have access to it" };
+      const flashcards = await prisma.flashcard.findMany({ where: { deckId: args.deckId } });
       return {
         success: true,
         deckTitle: deck.title,
         count: flashcards.length,
-        flashcards: flashcards.map((flashcard: any) => ({
-          id: flashcard.id,
-          front: flashcard.front,
-          back: flashcard.back,
-          notes: flashcard.notes,
+        flashcards: flashcards.map((f: any) => ({
+          id: f.id,
+          front: f.front,
+          back: f.back,
+          notes: f.notes,
         })),
         message: `Found ${flashcards.length} flashcard${flashcards.length !== 1 ? "s" : ""} in deck "${deck.title}"`,
       };
     }
-
     default:
       throw new Error(`Unknown function: ${functionName}`);
   }
@@ -249,168 +186,121 @@ async function executeFunctions(
 export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
 
-  // Helper to send SSE events
-  const sendEvent = (
-    controller: ReadableStreamDefaultController,
-    event: string,
-    data: any
-  ) => {
-    controller.enqueue(
-      encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
-    );
+  const sendEvent = (controller: ReadableStreamDefaultController, event: string, data: any) => {
+    controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
   };
 
   try {
-    // Verify authentication
     const token = request.cookies.get("auth-token")?.value;
     if (!token) {
-      return Response.json(
-        { success: false, error: "Authentication required" },
-        { status: 401 }
-      );
+      return Response.json({ success: false, error: "Authentication required" }, { status: 401 });
     }
 
     const payload = verifyToken(token) as { userId: string } | null;
     if (!payload) {
-      return Response.json(
-        { success: false, error: "Invalid token" },
-        { status: 401 }
-      );
+      return Response.json({ success: false, error: "Invalid token" }, { status: 401 });
     }
 
     const userId = payload.userId;
 
-    const {
-      message,
-      history = [],
-      model = "gemini-flash-latest",
-      temperature = 0.7,
-      maxTokens = 2048,
-    } = await request.json();
+    const { message, history = [] } = await request.json();
+    const model = "claude-sonnet-4-6";
+    const maxTokens = 4096;
 
     if (!message) {
-      return Response.json(
-        { success: false, error: "Message is required" },
-        { status: 400 }
-      );
+      return Response.json({ success: false, error: "Message is required" }, { status: 400 });
     }
 
-    const systemInstructionText = process.env.AI_SYSTEM_PROMPT_ACE!;
+    const messages: Anthropic.MessageParam[] = [
+      ...history.map((msg: any) => ({ role: msg.role, content: msg.content })),
+      { role: "user", content: message },
+    ];
 
-    const aiModel = genAI.getGenerativeModel({
-      model,
-      generationConfig: {
-        temperature,
-        maxOutputTokens: maxTokens,
-      },
-      tools: [
-        {
-          functionDeclarations: functions as any,
-        },
-      ],
-      systemInstruction: {
-        role: "user",
-        parts: [{ text: systemInstructionText }],
-      },
-    });
+    const systemPrompt = `You are Ace, a friendly language learning assistant. You help users create flashcard decks and study materials.
 
-    // Build conversation history
-    const geminiHistory = history.map((msg: any) => ({
-      role: msg.role === "assistant" ? "model" : "user",
-      parts: [{ text: msg.content }],
-    }));
+TOOL USE: When the user asks to create a deck, add cards, or do anything with their data — call the appropriate tool immediately. Do not describe what you will do, just do it.
 
-    const chat = aiModel.startChat({
-      history: geminiHistory,
-    });
+FLASHCARD FORMAT: When creating flashcards, keep each card concise:
+- front: the word, phrase, or question
+- back: the translation or answer (1–2 sentences max)
+- notes: one short example sentence or key usage tip (optional, keep brief)
+
+Create a reasonable number of cards (10–15 unless the user specifies). Be encouraging and conversational.`;
 
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          // First, send initial message to check for function calls
-          let result = await chat.sendMessage(message);
-          let response = result.response;
+          const actionsPerformed: string[] = [];
+          let currentMessages = [...messages];
 
-          // Handle function calls
-          const functionCalls = response.functionCalls();
-          let actionsPerformed: string[] = [];
+          // Stream loop — runs until model stops calling tools
+          while (true) {
+            const streamResponse = anthropic.messages.stream({
+              model,
+              max_tokens: maxTokens,
+              system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
+              messages: currentMessages,
+              tools,
+              temperature: 0.3,
+            });
 
-          if (functionCalls && functionCalls.length > 0) {
-            // Notify client that we're executing functions
+            // Stream text chunks as they arrive
+            for await (const chunk of streamResponse) {
+              if (
+                chunk.type === "content_block_delta" &&
+                chunk.delta.type === "text_delta" &&
+                chunk.delta.text
+              ) {
+                sendEvent(controller, "text", { text: chunk.delta.text });
+              }
+            }
+
+            const finalMessage = await streamResponse.finalMessage();
+
+            // No more tool calls — done
+            if (finalMessage.stop_reason !== "tool_use") break;
+
+            const toolUseBlocks = finalMessage.content.filter(
+              (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
+            );
+
             sendEvent(controller, "function_start", {
-              functions: functionCalls.map((f) => f.name),
+              functions: toolUseBlocks.map((b) => b.name),
             });
 
-            const functionResults = [];
+            currentMessages.push({ role: "assistant", content: finalMessage.content });
 
-            for (const call of functionCalls) {
-              console.log("Executing function:", call.name, call.args);
-              try {
-                const fnResult = await executeFunctions(
-                  call.name,
-                  call.args,
-                  userId
-                );
-                functionResults.push({
-                  functionResponse: {
-                    name: call.name,
-                    response: fnResult,
-                  },
-                });
-                actionsPerformed.push(call.name);
-              } catch (error) {
-                console.error("Function execution error:", error);
-                functionResults.push({
-                  functionResponse: {
-                    name: call.name,
-                    response: {
-                      success: false,
-                      error: (error as Error).message,
-                    },
-                  },
-                });
-              }
-            }
+            const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
+              toolUseBlocks.map(async (call) => {
+                console.log("Executing function:", call.name, call.input);
+                try {
+                  const result = await executeFunctions(call.name, call.input, userId);
+                  actionsPerformed.push(call.name);
+                  return {
+                    type: "tool_result" as const,
+                    tool_use_id: call.id,
+                    content: JSON.stringify(result),
+                  };
+                } catch (error) {
+                  console.error("Function execution error:", error);
+                  return {
+                    type: "tool_result" as const,
+                    tool_use_id: call.id,
+                    content: JSON.stringify({ success: false, error: (error as Error).message }),
+                  };
+                }
+              }),
+            );
 
-            // Notify client that functions completed
-            sendEvent(controller, "function_complete", {
-              actions: actionsPerformed,
-            });
-
-            // Now stream the final response after function calls
-            const streamResult = await chat.sendMessageStream(functionResults);
-
-            for await (const chunk of streamResult.stream) {
-              const text = chunk.text();
-              if (text) {
-                sendEvent(controller, "text", { text });
-              }
-            }
-          } else {
-            // No function calls, stream the response directly
-            // Re-send with streaming
-            const streamResult = await chat.sendMessageStream(message);
-
-            for await (const chunk of streamResult.stream) {
-              const text = chunk.text();
-              if (text) {
-                sendEvent(controller, "text", { text });
-              }
-            }
+            sendEvent(controller, "function_complete", { actions: actionsPerformed });
+            currentMessages.push({ role: "user", content: toolResults });
           }
 
-          // Send completion event
-          sendEvent(controller, "done", {
-            actionsPerformed,
-            timestamp: new Date().toISOString(),
-          });
-
+          sendEvent(controller, "done", { actionsPerformed, timestamp: new Date().toISOString() });
           controller.close();
         } catch (error) {
           console.error("Streaming error:", error);
-          sendEvent(controller, "error", {
-            error: (error as Error).message,
-          });
+          sendEvent(controller, "error", { error: "An error occurred" });
           controller.close();
         }
       },
@@ -426,11 +316,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Agent Stream API Error:", error);
     return Response.json(
-      {
-        success: false,
-        error: (error as Error).message || "Failed to process request",
-      },
-      { status: 500 }
+      { success: false, error: (error as Error).message || "Failed to process request" },
+      { status: 500 },
     );
   }
 }

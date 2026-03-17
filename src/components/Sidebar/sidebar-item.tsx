@@ -34,10 +34,7 @@ export function SidebarItem({ onEvent, title, description, id }: Props) {
                 <div className="flex flex-col">
                   <span className="">{title}</span>
                   {description && (
-                    <span
-                      className="text-[12px] antialiased text-muted"
-                      title={description}
-                    >
+                    <span className="text-[12px] antialiased text-muted" title={description}>
                       {truncate(description, { length: 48 })}
                     </span>
                   )}

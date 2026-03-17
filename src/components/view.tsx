@@ -10,16 +10,18 @@ interface Props {
 
 const View = ({ isLoading, children, title, subTitle }: Props) => {
   return (
-    <div>
-      <div className="flex flex-col gap-1">
-        <span className="text-xl font-semibold leading-[1.5]">
+    <div className="flex flex-col h-full">
+      <div className="flex flex-col gap-1 px-8 py-5 border-b border-border shrink-0">
+        <span className="text-sm font-semibold leading-[1.5]">
           {isLoading ? <Skeleton className="w-[150px] h-[25px] rounded-xs" /> : title}
         </span>
-        <span className="text-sm text-muted pb-4">
-          {isLoading ? <Skeleton className="w-[100px] h-[15px] rounded-xs" /> : subTitle}
-        </span>
+        {subTitle && (
+          <span className="text-xs text-muted-foreground">
+            {isLoading ? <Skeleton className="w-[100px] h-[15px] rounded-xs" /> : subTitle}
+          </span>
+        )}
       </div>
-      {children}
+      <div className="flex-1 overflow-y-auto p-8">{children}</div>
     </div>
   );
 };

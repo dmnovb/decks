@@ -25,10 +25,7 @@ export function filterDueCards(cards: Flashcard[]): Flashcard[] {
 /**
  * Filter new cards with optional limit
  */
-export function filterNewCards(
-  cards: Flashcard[],
-  limit?: number
-): Flashcard[] {
+export function filterNewCards(cards: Flashcard[], limit?: number): Flashcard[] {
   const newCards = cards.filter(isCardNew);
   return limit ? newCards.slice(0, limit) : newCards;
 }
@@ -55,9 +52,7 @@ export function sortByDueDate(cards: Flashcard[]): Flashcard[] {
     if (!b.nextReview) return 1;
 
     // Sort by next review date (earlier = more overdue)
-    return (
-      new Date(a.nextReview).getTime() - new Date(b.nextReview).getTime()
-    );
+    return new Date(a.nextReview).getTime() - new Date(b.nextReview).getTime();
   });
 }
 
@@ -82,10 +77,7 @@ export interface SessionConfig {
 /**
  * Apply session configuration to filter and sort cards
  */
-export function applySessionConfig(
-  allCards: Flashcard[],
-  config: SessionConfig
-): Flashcard[] {
+export function applySessionConfig(allCards: Flashcard[], config: SessionConfig): Flashcard[] {
   let cards = [...allCards];
 
   // Step 1: Filter by due status if requested
@@ -98,9 +90,7 @@ export function applySessionConfig(
   const reviewCards = cards.filter((c) => !isCardNew(c));
 
   // Apply new card limit
-  const limitedNewCards = config.maxNewCards
-    ? newCards.slice(0, config.maxNewCards)
-    : newCards;
+  const limitedNewCards = config.maxNewCards ? newCards.slice(0, config.maxNewCards) : newCards;
 
   // Recombine
   cards = [...limitedNewCards, ...reviewCards];

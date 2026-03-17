@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import { useState, useEffect, useCallback } from "react";
 import { Flashcard } from "@/generated/prisma";
@@ -107,7 +107,7 @@ export function FlashcardsView() {
     (config: SessionConfig) => {
       startSession(flashcards, config, id as string);
     },
-    [flashcards, id, startSession]
+    [flashcards, id, startSession],
   );
 
   // Loading state
@@ -132,9 +132,7 @@ export function FlashcardsView() {
   if (flashcards.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <p className="text-muted-foreground text-sm">
-          No flashcards in this deck
-        </p>
+        <p className="text-muted-foreground text-sm">No flashcards in this deck</p>
         <Button variant="outline" onClick={() => window.history.back()}>
           Go Back
         </Button>
@@ -169,6 +167,13 @@ export function FlashcardsView() {
             </Button>
           </div>
         </div>
+
+        <SessionSetup
+          isOpen={showSetup}
+          onClose={() => setShowSetup(false)}
+          onStart={handleStartSession}
+          allCards={flashcards}
+        />
       </div>
     );
   }
@@ -235,9 +240,7 @@ export function FlashcardsView() {
   return (
     <>
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <p className="text-muted-foreground text-sm">
-          Ready to start studying?
-        </p>
+        <p className="text-muted-foreground text-sm">Ready to start studying?</p>
         <Button onClick={() => setShowSetup(true)}>Configure Session</Button>
       </div>
 

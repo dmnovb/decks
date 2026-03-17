@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import { User } from "@/generated/prisma";
 import { useRouter } from "next/navigation";
@@ -6,132 +6,141 @@ import { createContext, PropsWithChildren, useContext, useEffect, useState } fro
 import { toast } from "sonner";
 
 interface Auth {
-    user: User | null;
-    isLoading: boolean;
-    isAuthenticated: boolean;
-    login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-    logout: () => Promise<void>;
-    register: (name: string, password: string, email: string) => Promise<{ success: boolean; error?: string }>;
+  user: User | null;
+  isLoading: boolean;
+  isInitializing: boolean;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  register: (
+    name: string,
+    password: string,
+    email: string,
+  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<Auth>({
-    user: null,
-    isLoading: false,
-    isAuthenticated: false,
-    login: async () => ({ success: false }),
-    logout: async () => { },
-    register: async () => ({ success: false })
-})
+  user: null,
+  isLoading: false,
+  isInitializing: true,
+  isAuthenticated: false,
+  login: async () => ({ success: false }),
+  logout: async () => {},
+  register: async () => ({ success: false }),
+});
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
-    const [user, setUser] = useState<User | null>(null)
-    const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
 
-    const router = useRouter()
+  const router = useRouter();
 
-    useEffect(() => {
-        checkAuth()
-    }, [])
+  useEffect(() => {
+    checkAuth();
+  }, []);
 
-    const checkAuth = async () => {
-        const userData = localStorage.getItem('user-data')
-        if (userData) {
-            setUser(JSON.parse(userData))
-        }
-
-        try {
-            const response = await fetch('/api/auth/me', {
-                credentials: 'include'
-            })
-
-            if (response.ok) {
-                const userData = await response.json()
-                setUser(userData)
-            } else {
-                setUser(null)
-            }
-        } catch (error) {
-            console.error('Auth check failed:', error)
-            setUser(null)
-        } finally {
-            setIsLoading(false)
-        }
+  const checkAuth = async () => {
+    const userData = localStorage.getItem("user-data");
+    if (userData) {
+      setUser(JSON.parse(userData));
     }
 
-    const login = async (email: string, password: string) => {
-        setIsLoading(true)
-        try {
-            const res = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ email, password })
-            })
+    try {
+      const response = await fetch("/api/auth/me", {
+        credentials: "include",
+      });
 
-            if (res.ok) {
-                const userData = await res.json()
-                setUser(userData)
-                router.push('/')
-                toast.success('Logged in.')
-                localStorage.setItem('user-data', JSON.stringify(userData))
-                return { success: true }
-            } else {
-                const error = await res.json()
-                toast.error(error.message || 'Login failed')
-                return { success: false, error: error.message }
-            }
-        } catch (error) {
-            toast.error((error as Error).message)
-            return { success: false, error: (error as Error).message }
-        } finally {
-            setIsLoading(false)
-        }
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Auth check failed:", error);
+      setUser(null);
+    } finally {
+      setIsInitializing(false);
     }
+  };
 
-    const logout = async () => {
-        try {
-            await fetch('/api/auth/logout', {
-                method: 'POST',
-                credentials: 'include'
-            })
-            setUser(null)
-            router.push('/login')
-        } catch (error) {
-            console.error('Logout failed:', error)
-        }
+  const login = async (email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (res.ok) {
+        const userData = await res.json();
+        setUser(userData);
+        router.push("/");
+        toast.success("Logged in.");
+        localStorage.setItem("user-data", JSON.stringify(userData));
+        return { success: true };
+      } else {
+        const error = await res.json();
+        toast.error(error.message || "Login failed");
+        return { success: false, error: error.message };
+      }
+    } catch (error) {
+      toast.error((error as Error).message);
+      return { success: false, error: (error as Error).message };
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    const register = async (name: string, password: string, email: string) => {
-        try {
-            const res = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password, name })
-            })
-
-            if (res.ok) {
-                const userData = await res.json()
-                setUser(userData)
-                localStorage.setItem('user-data', JSON.stringify(userData))
-                router.push('/')
-                toast.success('Account created.')
-                return { success: true }
-            } else {
-                const error = await res.json()
-                toast.error(error.message || 'Registration failed')
-                return { success: false, error: error.message }
-            }
-        } catch (error) {
-            toast.error('Registration failed')
-            return { success: false, error: 'Registration failed' }
-        }
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      setUser(null);
+      router.push("/login");
+    } catch (error) {
+      console.error("Logout failed:", error);
     }
+  };
 
-    return (
-        <AuthContext.Provider value={{ user, login, logout, register, isLoading, isAuthenticated: !!user }}>
-            {children}
-        </AuthContext.Provider>
-    )
-}
+  const register = async (name: string, password: string, email: string) => {
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, name }),
+      });
 
-export const useAuth = () => useContext(AuthContext)
+      if (res.ok) {
+        const userData = await res.json();
+        setUser(userData);
+        localStorage.setItem("user-data", JSON.stringify(userData));
+        router.push("/");
+        toast.success("Account created.");
+        return { success: true };
+      } else {
+        const error = await res.json();
+        toast.error(error.message || "Registration failed");
+        return { success: false, error: error.message };
+      }
+    } catch (error) {
+      toast.error("Registration failed");
+      return { success: false, error: "Registration failed" };
+    }
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{ user, login, logout, register, isLoading, isInitializing, isAuthenticated: !!user }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => useContext(AuthContext);

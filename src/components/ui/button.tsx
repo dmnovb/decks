@@ -15,16 +15,14 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "rounded-sm bg-[linear-gradient(180deg,_oklch(64.09%_0.105_183.78),_oklch(50%_0.1_183.78))] font-bold text-primary-foreground hover:bg-[linear-gradient(180deg,_oklch(68%_0.105_183.78),_oklch(54%_0.1_183.78))]",
+          "rounded-sm bg-foreground text-background font-medium hover:bg-foreground/85 active:bg-foreground/75",
         destructive:
-          "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20",
         outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
-        secondary:
-          "bg-transparent border border-primary font-semibold hover:bg-[linear-gradient(180deg,_oklch(64.09%_0.105_183.78),_oklch(50%_0.1_183.78))] transition-all duration-300 ease-in-out",
-        ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
+          "border border-border bg-transparent text-foreground hover:bg-background-2 hover:text-foreground",
+        secondary: "bg-background-2 border border-border text-foreground hover:bg-background-3",
+        ghost: "text-muted-foreground hover:text-foreground hover:bg-background-2",
+        link: "text-foreground underline-offset-4 hover:underline",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
@@ -37,17 +35,10 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  }
+  },
 );
 
-function Button({
-  className,
-  variant,
-  size,
-  asChild = false,
-  capitalize,
-  ...props
-}: Props) {
+function Button({ className, variant, size, asChild = false, capitalize, ...props }: Props) {
   const Comp = asChild ? Slot : "button";
 
   return (

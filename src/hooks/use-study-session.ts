@@ -65,10 +65,7 @@ const initialState: SessionState = {
   isCompleted: false,
 };
 
-function sessionReducer(
-  state: SessionState,
-  action: SessionAction
-): SessionState {
+function sessionReducer(state: SessionState, action: SessionAction): SessionState {
   switch (action.type) {
     case "START_SESSION":
       return {
@@ -94,9 +91,7 @@ function sessionReducer(
       return {
         ...state,
         completedCards: state.completedCards + 1,
-        correctCount: isCorrect
-          ? state.correctCount + 1
-          : state.correctCount,
+        correctCount: isCorrect ? state.correctCount + 1 : state.correctCount,
         wrongCount: !isCorrect ? state.wrongCount + 1 : state.wrongCount,
         currentStreak: newStreak,
         bestStreak: Math.max(newStreak, state.bestStreak),
@@ -137,11 +132,7 @@ function sessionReducer(
 export interface UseStudySessionReturn {
   sessionState: SessionState;
   currentCard: Flashcard | null;
-  startSession: (
-    allCards: Flashcard[],
-    config: SessionConfig,
-    deckId: string
-  ) => void;
+  startSession: (allCards: Flashcard[], config: SessionConfig, deckId: string) => void;
   flipCard: () => void;
   rateCard: (quality: number) => Promise<void>;
   endSession: () => void;
@@ -167,7 +158,7 @@ export function useStudySession(): UseStudySessionReturn {
         deckId,
       });
     },
-    []
+    [],
   );
 
   // Flip the current card
@@ -182,16 +173,14 @@ export function useStudySession(): UseStudySessionReturn {
       if (!currentCard) return;
 
       // Calculate time spent on this card
-      const timeSpent = sessionState.cardStartTime
-        ? Date.now() - sessionState.cardStartTime
-        : 0;
+      const timeSpent = sessionState.cardStartTime ? Date.now() - sessionState.cardStartTime : 0;
 
       // Apply SM2 algorithm
       const { interval, repetitions, easeFactor } = sm2(
         quality,
         currentCard.repetitions,
         currentCard.interval,
-        currentCard.easeFactor
+        currentCard.easeFactor,
       );
 
       // Prepare updated card data
@@ -228,7 +217,7 @@ export function useStudySession(): UseStudySessionReturn {
         console.error("Failed to save card:", error);
       }
     },
-    [sessionState, updateFlashcard]
+    [sessionState, updateFlashcard],
   );
 
   // End session early

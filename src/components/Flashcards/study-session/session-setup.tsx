@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -22,12 +22,7 @@ interface SessionSetupProps {
   allCards: Flashcard[];
 }
 
-export function SessionSetup({
-  isOpen,
-  onClose,
-  onStart,
-  allCards,
-}: SessionSetupProps) {
+export function SessionSetup({ isOpen, onClose, onStart, allCards }: SessionSetupProps) {
   const [maxCards, setMaxCards] = useState<number | undefined>(20);
   const [maxNewCards, setMaxNewCards] = useState<number | undefined>(5);
   const [dueOnly, setDueOnly] = useState(true);
@@ -36,17 +31,12 @@ export function SessionSetup({
   // Calculate preview counts
   const dueCards = allCards.filter(isCardDue);
   const newCards = allCards.filter(isCardNew);
-  const reviewCards = allCards.filter(
-    (c) => !isCardNew(c) && (dueOnly ? isCardDue(c) : true)
-  );
+  const reviewCards = allCards.filter((c) => !isCardNew(c) && (dueOnly ? isCardDue(c) : true));
 
-  const estimatedNewCards = Math.min(
-    maxNewCards || newCards.length,
-    newCards.length
-  );
+  const estimatedNewCards = Math.min(maxNewCards || newCards.length, newCards.length);
   const estimatedReviewCards = Math.min(
     (maxCards || allCards.length) - estimatedNewCards,
-    reviewCards.length
+    reviewCards.length,
   );
   const estimatedTotal = estimatedNewCards + estimatedReviewCards;
 
@@ -67,9 +57,7 @@ export function SessionSetup({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Start Study Session</DialogTitle>
-          <DialogDescription>
-            Configure your study session
-          </DialogDescription>
+          <DialogDescription>Configure your study session</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
@@ -91,9 +79,7 @@ export function SessionSetup({
               <div className="h-px bg-border my-2" />
               <div className="flex justify-between text-base">
                 <span className="font-medium">Session preview:</span>
-                <span className="font-bold text-primary">
-                  {estimatedTotal} cards
-                </span>
+                <span className="font-bold text-primary">{estimatedTotal} cards</span>
               </div>
               <div className="text-xs text-muted-foreground pl-4">
                 {estimatedNewCards} new • {estimatedReviewCards} review
@@ -210,11 +196,7 @@ export function SessionSetup({
           <Button variant="outline" onClick={onClose} className="flex-1">
             Cancel
           </Button>
-          <Button
-            onClick={handleStart}
-            className="flex-1"
-            disabled={estimatedTotal === 0}
-          >
+          <Button onClick={handleStart} className="flex-1" disabled={estimatedTotal === 0}>
             Start Session ({estimatedTotal} cards)
           </Button>
         </div>

@@ -42,8 +42,8 @@ const CreateNew = () => {
         </DialogHeader>
 
         <DialogDescription>
-          Enter a name for your new flashcard deck. This will help you identify
-          and organize your decks later.
+          Enter a name for your new flashcard deck. This will help you identify and organize your
+          decks later.
         </DialogDescription>
 
         <Separator />
@@ -54,9 +54,7 @@ const CreateNew = () => {
             <Input
               required
               className="w-full"
-              onChange={(e) =>
-                setValues((prev) => ({ ...prev, title: e.target.value }))
-              }
+              onChange={(e) => setValues((prev) => ({ ...prev, title: e.target.value }))}
               value={values.title}
             />
           </div>
@@ -65,9 +63,7 @@ const CreateNew = () => {
             <Label>Deck description</Label>
             <Input
               className="w-full"
-              onChange={(e) =>
-                setValues((prev) => ({ ...prev, description: e.target.value }))
-              }
+              onChange={(e) => setValues((prev) => ({ ...prev, description: e.target.value }))}
               value={values.description}
             />
           </div>

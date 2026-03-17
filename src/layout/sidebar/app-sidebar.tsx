@@ -15,20 +15,27 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDecks } from "@/providers/decks-provider";
 import { SidebarFooter, SidebarItem } from "@/components/Sidebar";
-import { StarIcon } from '@/icons'
+import { StarIcon } from "@/icons";
 import { useRouter } from "next/navigation";
 
 import useDeleteDeck from "@/hooks/use-delete-deck";
 import CreateNew from "./create-new";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Folder } from "lucide-react";
 
 export const AppSidebar = () => {
   const { isLoading, state } = useDecks();
   const { handleDelete } = useDeleteDeck();
-  const router = useRouter()
+  const router = useRouter();
 
   const { decks } = state;
 
@@ -49,9 +56,12 @@ export const AppSidebar = () => {
           <SidebarGroupLabel>Tools</SidebarGroupLabel>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild onClick={() => router.push('/chat')}>
+              <SidebarMenuButton asChild onClick={() => router.push("/chat")}>
                 <div className="cursor-pointer h-full flex items-center gap-2">
-                  <StarIcon size={18} className="text-primary bg-primary/10 p-2 rounded-sm box-content" />
+                  <StarIcon
+                    size={18}
+                    className="text-primary bg-primary/10 p-2 rounded-sm box-content"
+                  />
                   <div className="flex flex-col">
                     <span>Ask Ace</span>
                     <span className="text-[12px] antialiased text-muted">
@@ -75,8 +85,7 @@ export const AppSidebar = () => {
                   </EmptyMedia>
                   <EmptyTitle>No Decks Yet</EmptyTitle>
                   <EmptyDescription>
-                    You haven&apos;t created any decks yet. Get started by creating
-                    your first deck.
+                    You haven&apos;t created any decks yet. Get started by creating your first deck.
                   </EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>

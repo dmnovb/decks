@@ -1,55 +1,101 @@
-import { NextRequest } from 'next/server'
-import { createPerplexity } from '@ai-sdk/perplexity'
-import { streamText } from 'ai'
+import Anthropic from "@anthropic-ai/sdk";
+import { NextRequest } from "next/server";
+import { verifyToken } from "@/lib/auth/helpers";
 
-const pplx = createPerplexity({
-    apiKey: process.env.PERPLEXITY_API_KEY!
-})
+const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
+
+const MODEL = "claude-sonnet-4-6";
+const MAX_TOKENS = 2048;
+const TEMPERATURE = 0.7;
+
+function getAuthenticatedUserId(request: NextRequest): string | null {
+  const token = request.cookies.get("auth-token")?.value;
+  if (!token) return null;
+  const payload = verifyToken(token);
+  return payload?.userId ?? null;
+}
 
 export async function POST(request: NextRequest) {
-    const body = await request.json().catch(() => ({}))
-    const {
-        prompt,
-        system,
-        temperature = 0.7,
-        maxOutputTokens = 2048,
-        model = 'sonar-pro'
-    } = body || {}
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) {
+    return Response.json({ success: false, error: "Authentication required" }, { status: 401 });
+  }
 
-    if (!prompt || typeof prompt !== 'string') {
-        return Response.json({ success: false, error: 'prompt is required' }, { status: 400 })
-    }
+  const body = await request.json().catch(() => ({}));
+  const { prompt, system } = body || {};
 
-    const result = await streamText({
-        model: pplx(model as any),
-        system,
-        temperature,
-        maxOutputTokens,
-        prompt,
-    })
+  if (!prompt || typeof prompt !== "string") {
+    return Response.json({ success: false, error: "prompt is required" }, { status: 400 });
+  }
 
-    return result.toTextStreamResponse()
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        const response = anthropic.messages.stream({
+          model: MODEL,
+          max_tokens: MAX_TOKENS,
+          system,
+          temperature: TEMPERATURE,
+          messages: [{ role: "user", content: prompt }],
+        });
+
+        for await (const chunk of response) {
+          if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
+            controller.enqueue(encoder.encode(chunk.delta.text));
+          }
+        }
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
 }
 
 export async function GET(request: NextRequest) {
-    const { searchParams } = new URL(request.url)
-    const prompt = searchParams.get('prompt') || searchParams.get('message') || ''
-    const system = searchParams.get('system') || undefined
-    const temperature = searchParams.get('temperature') ? Number(searchParams.get('temperature')) : 0.7
-    const maxOutputTokens = searchParams.get('maxOutputTokens') ? Number(searchParams.get('maxOutputTokens')) : 2048
-    const model = searchParams.get('model') || 'sonar-pro'
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) {
+    return Response.json({ success: false, error: "Authentication required" }, { status: 401 });
+  }
 
-    if (!prompt) {
-        return Response.json({ success: false, error: 'prompt is required' }, { status: 400 })
-    }
+  const { searchParams } = new URL(request.url);
+  const prompt = searchParams.get("prompt") || searchParams.get("message") || "";
+  const system = searchParams.get("system") || undefined;
 
-    const result = await streamText({
-        model: pplx(model as any),
-        system,
-        temperature,
-        maxOutputTokens,
-        prompt
-    })
+  if (!prompt) {
+    return Response.json({ success: false, error: "prompt is required" }, { status: 400 });
+  }
 
-    return result.toTextStreamResponse()
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        const response = anthropic.messages.stream({
+          model: MODEL,
+          max_tokens: MAX_TOKENS,
+          system,
+          temperature: TEMPERATURE,
+          messages: [{ role: "user", content: prompt }],
+        });
+
+        for await (const chunk of response) {
+          if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
+            controller.enqueue(encoder.encode(chunk.delta.text));
+          }
+        }
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
 }

@@ -23,9 +23,9 @@ type Action =
   | { type: "SET"; decks: Deck[] }
   | { type: "DELETE"; id: string }
   | { type: "SELECT"; deckId: string }
-  | { type: "ADD_FLASHCARD"; deckId: string, flashcard: Flashcard }
-  | { type: "DELETE_FLASHCARD"; deckId: string; flashcardId: Flashcard['id'] }
-  | { type: "UPDATE_FLASHCARD"; deckId: string; flashcard: Flashcard }
+  | { type: "ADD_FLASHCARD"; deckId: string; flashcard: Flashcard }
+  | { type: "DELETE_FLASHCARD"; deckId: string; flashcardId: Flashcard["id"] }
+  | { type: "UPDATE_FLASHCARD"; deckId: string; flashcard: Flashcard };
 
 const initialState: State = {
   decks: [],
@@ -51,7 +51,9 @@ const reducer = (state: State, action: Action): State => {
       return {
         ...state,
         decks: action.decks,
-        selectedDeck: state.selectedDeck ? action.decks.find((deck) => deck.id === state.selectedDeck?.id) || null : null,
+        selectedDeck: state.selectedDeck
+          ? action.decks.find((deck) => deck.id === state.selectedDeck?.id) || null
+          : null,
       };
     case "DELETE":
       const deletedDeckIndex = state.decks.findIndex((deck) => deck.id === action.id);
@@ -78,28 +80,40 @@ const reducer = (state: State, action: Action): State => {
     case "ADD_FLASHCARD":
       return {
         ...state,
-        decks: state.decks.map(deck =>
+        decks: state.decks.map((deck) =>
           deck.id === action.deckId
             ? { ...deck, flashcards: [...(deck.flashcards || []), action.flashcard] }
-            : deck
-        )
-      }
+            : deck,
+        ),
+      };
     case "DELETE_FLASHCARD":
       return {
         ...state,
         decks: state.decks.map((deck) =>
           deck.id === action.deckId
-            ? { ...deck, flashcards: deck.flashcards.filter((card: Flashcard) => card.id !== action.flashcardId) }
-            : deck
-        )
-      }
+            ? {
+                ...deck,
+                flashcards: deck.flashcards.filter(
+                  (card: Flashcard) => card.id !== action.flashcardId,
+                ),
+              }
+            : deck,
+        ),
+      };
     case "UPDATE_FLASHCARD":
       return {
         ...state,
         decks: state.decks.map((deck) =>
-          deck.id === action.deckId ? { ...deck, flashcards: deck.flashcards.map((card: Flashcard) => card.id === action.flashcard.id ? action.flashcard : card) } : deck
-        )
-      }
+          deck.id === action.deckId
+            ? {
+                ...deck,
+                flashcards: deck.flashcards.map((card: Flashcard) =>
+                  card.id === action.flashcard.id ? action.flashcard : card,
+                ),
+              }
+            : deck,
+        ),
+      };
     default:
       return state;
   }
@@ -113,6 +127,7 @@ interface DecksContextValue {
   refreshDecks: () => Promise<void>;
   selectDeck: (deckId: string) => void;
   selectedDeck: Deck | null;
+  createDeck: (title: string, description?: string) => Promise<Deck | null>;
 }
 
 export const DecksContext = createContext<DecksContextValue>({
@@ -120,23 +135,28 @@ export const DecksContext = createContext<DecksContextValue>({
   dispatch: () => undefined,
   isLoading: false,
   error: null,
-  refreshDecks: async () => { },
-  selectDeck: () => { },
+  refreshDecks: async () => {},
+  selectDeck: () => {},
   selectedDeck: null,
+  createDeck: async () => null,
 });
 
 const fetcher = (endpoint: string) => fetch(endpoint).then((r) => r.json());
 
 export const DecksProvider = ({ children }: PropsWithChildren) => {
-  const { user } = useAuth()
+  const { user } = useAuth();
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  const { data, error, isLoading, mutate } = useSWR<Deck[]>(`/api/decks?userId=${user?.id}`, fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 60000,
-    refreshInterval: 0,
-    revalidateOnReconnect: false
-  });
+  const { data, error, isLoading, mutate } = useSWR<Deck[]>(
+    `/api/decks?userId=${user?.id}`,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 60000,
+      refreshInterval: 0,
+      revalidateOnReconnect: false,
+    },
+  );
 
   useEffect(() => {
     if (data) dispatch({ type: "SET", decks: data });
@@ -150,16 +170,35 @@ export const DecksProvider = ({ children }: PropsWithChildren) => {
     dispatch({ type: "SELECT", deckId });
   };
 
+  const createDeck = async (title: string, description?: string): Promise<Deck | null> => {
+    try {
+      const res = await fetch("/api/decks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ title, description }),
+      });
+      if (!res.ok) return null;
+      const deck: Deck = await res.json();
+      dispatch({ type: "ADD", deck });
+      return deck;
+    } catch {
+      return null;
+    }
+  };
+
   return (
-    <DecksContext.Provider value={{
-      state,
-      dispatch,
-      error,
-      isLoading,
-      refreshDecks,
-      selectDeck,
-      selectedDeck: state.selectedDeck,
-    }}
+    <DecksContext.Provider
+      value={{
+        state,
+        dispatch,
+        error,
+        isLoading,
+        refreshDecks,
+        selectDeck,
+        selectedDeck: state.selectedDeck,
+        createDeck,
+      }}
     >
       {children}
     </DecksContext.Provider>

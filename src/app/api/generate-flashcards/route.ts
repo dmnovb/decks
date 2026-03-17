@@ -1,78 +1,40 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
+const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
     const token = request.cookies.get("auth-token")?.value;
     if (!token) {
-      return Response.json(
-        {
-          success: false,
-          error: "Authentication required",
-        },
-        { status: 401 },
-      );
+      return Response.json({ success: false, error: "Authentication required" }, { status: 401 });
     }
 
     const payload = verifyToken(token) as { userId: string } | null;
     if (!payload) {
-      return Response.json(
-        {
-          success: false,
-          error: "Invalid token",
-        },
-        { status: 401 },
-      );
+      return Response.json({ success: false, error: "Invalid token" }, { status: 401 });
     }
 
-    const { prompt, deckId, count = 10 } = await request.json();
+    const { prompt, deckId, count: rawCount = 10 } = await request.json();
+    const count = Math.min(Math.max(Number(rawCount) || 10, 1), 50);
 
     if (!prompt) {
-      return Response.json(
-        {
-          success: false,
-          error: "Prompt is required",
-        },
-        { status: 400 },
-      );
+      return Response.json({ success: false, error: "Prompt is required" }, { status: 400 });
     }
 
     if (!deckId) {
-      return Response.json(
-        {
-          success: false,
-          error: "Deck ID is required",
-        },
-        { status: 400 },
-      );
+      return Response.json({ success: false, error: "Deck ID is required" }, { status: 400 });
     }
 
-    // Verify deck belongs to user
     const deck = await prisma.deck.findFirst({
-      where: {
-        id: deckId,
-        userId: payload.userId,
-      },
+      where: { id: deckId, userId: payload.userId },
     });
 
     if (!deck) {
-      return Response.json(
-        {
-          success: false,
-          error: "Deck not found",
-        },
-        { status: 404 },
-      );
+      return Response.json({ success: false, error: "Deck not found" }, { status: 404 });
     }
-
-    const model = genAI.getGenerativeModel({
-      model: "gemini-flash-latest",
-    });
 
     const fullPrompt = `Generate ${count} high-quality flashcards for: ${prompt}
 
@@ -87,30 +49,29 @@ Return ONLY a valid JSON array with this exact structure (no markdown, no extra 
 
 Make the flashcards educational, clear, and appropriate for language learning.`;
 
-    const result = await model.generateContent(fullPrompt);
-    const response = result.response.text();
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 4096,
+      messages: [{ role: "user", content: fullPrompt }],
+    });
 
-    // Parse the JSON response
+    const responseText = response.content[0].type === "text" ? response.content[0].text : "";
+
     let flashcardsData;
     try {
-      // Remove markdown code blocks if present
-      const cleanedResponse = response
+      const cleanedResponse = responseText
         .replace(/```json\n?/g, "")
         .replace(/```\n?/g, "")
         .trim();
       flashcardsData = JSON.parse(cleanedResponse);
     } catch (e) {
-      console.error("Failed to parse AI response:", response);
+      console.error("Failed to parse AI response:", responseText);
       return Response.json(
-        {
-          success: false,
-          error: "Failed to parse AI response",
-        },
+        { success: false, error: "Failed to parse AI response" },
         { status: 500 },
       );
     }
 
-    // Create flashcards in database
     const createdFlashcards = await prisma.flashcard.createMany({
       data: flashcardsData.map((card: any) => ({
         front: card.front,
@@ -128,10 +89,7 @@ Make the flashcards educational, clear, and appropriate for language learning.`;
   } catch (error) {
     console.error("Generate flashcards error:", error);
     return Response.json(
-      {
-        success: false,
-        error: (error as Error).message || "Failed to generate flashcards",
-      },
+      { success: false, error: "Failed to generate flashcards" },
       { status: 500 },
     );
   }

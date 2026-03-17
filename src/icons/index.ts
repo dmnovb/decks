@@ -1,1 +1,1 @@
-export { StarIcon } from './star'
+export { StarIcon } from "./star";
