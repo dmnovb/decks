@@ -2,21 +2,23 @@ import React from "react";
 
 import { ChevronsUpDown } from "lucide-react";
 import { SidebarMenuButton, SidebarMenuItem } from "../ui/sidebar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useAuth } from "@/providers/auth-provider";
-import { truncate } from 'lodash'
+import { truncate } from "lodash";
 
 export function SidebarFooter() {
-  const { user, logout } = useAuth()
+  const { user, logout } = useAuth();
 
   return (
     <SidebarMenuItem className="list-none">
       <DropdownMenu>
-        <DropdownMenuTrigger
-          className="hover:cursor-pointer p-1 h-full"
-          asChild
-        >
+        <DropdownMenuTrigger className="hover:cursor-pointer p-1 h-full" asChild>
           <SidebarMenuButton className="flex justify-between">
             <div className="flex items-center gap-2">
               <Avatar>
@@ -35,10 +37,7 @@ export function SidebarFooter() {
             <ChevronsUpDown />
           </SidebarMenuButton>
         </DropdownMenuTrigger>
-        <DropdownMenuContent
-          side="top"
-          className="w-[--radix-popper-anchor-width] bg-background-1"
-        >
+        <DropdownMenuContent side="top" className="w-[--radix-popper-anchor-width] bg-background-1">
           <DropdownMenuItem>
             <span>Account</span>
           </DropdownMenuItem>
@@ -52,4 +51,4 @@ export function SidebarFooter() {
       </DropdownMenu>
     </SidebarMenuItem>
   );
-};
+}

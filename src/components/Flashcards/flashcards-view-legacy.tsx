@@ -1,14 +1,9 @@
-'use client'
+"use client";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import {
-  ArrowLeft,
-  Eye,
-  EyeOff,
-  Clock,
-} from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Clock } from "lucide-react";
 import { useState } from "react";
 import { Flashcard } from "@/generated/prisma";
 import { useParams } from "next/navigation";
@@ -41,7 +36,7 @@ export function FlashcardsView() {
     data: flashcards = [],
     error,
     isLoading,
-    mutate  // Add mutate here
+    mutate, // Add mutate here
   } = useSWR<Flashcard[]>(`/api/flashcards?deckId=${id}`, fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
@@ -51,7 +46,8 @@ export function FlashcardsView() {
 
   if (isLoading) return <div>Loading flashcards...</div>;
   if (error) return <div>Error loading flashcards</div>;
-  if (!flashcards.length) return <div className="text-muted text-sm">No flashcards in this deck</div>;
+  if (!flashcards.length)
+    return <div className="text-muted text-sm">No flashcards in this deck</div>;
 
   const currentCard = flashcards[currentCardIndex];
   const progress = ((currentCardIndex + 1) / flashcards.length) * 100;
@@ -74,7 +70,7 @@ export function FlashcardsView() {
       quality,
       currentCard.repetitions,
       currentCard.interval,
-      currentCard.easeFactor
+      currentCard.easeFactor,
     );
 
     // Prepare updated flashcard data
@@ -129,11 +125,7 @@ export function FlashcardsView() {
             onClick={() => setShowBack(!showBack)}
             className="text-muted-foreground hover:text-foreground"
           >
-            {showBack ? (
-              <EyeOff className="w-4 h-4 mr-2" />
-            ) : (
-              <Eye className="w-4 h-4 mr-2" />
-            )}
+            {showBack ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
             {showBack ? "Hide Answer" : "Show Answer"}
           </Button>
         </div>
@@ -142,9 +134,7 @@ export function FlashcardsView() {
         <div className="flex-1 flex flex-col justify-center">
           <div className="text-center space-y-6">
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground uppercase tracking-wide">
-                Question
-              </p>
+              <p className="text-sm text-muted-foreground uppercase tracking-wide">Question</p>
               <h2 className="text-2xl font-semibold text-foreground leading-relaxed">
                 {currentCard.front}
               </h2>
@@ -152,9 +142,7 @@ export function FlashcardsView() {
 
             {showBack && (
               <div className="space-y-4 pt-6 border-t border-border/30">
-                <p className="text-sm text-muted-foreground uppercase tracking-wide">
-                  Answer
-                </p>
+                <p className="text-sm text-muted-foreground uppercase tracking-wide">Answer</p>
                 <p className="text-lg text-foreground leading-relaxed max-w-2xl mx-auto">
                   {currentCard.back}
                 </p>

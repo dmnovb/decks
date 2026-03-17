@@ -15,17 +15,17 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@/components/ui/empty"
+} from "@/components/ui/empty";
 import { ArrowUpRightIcon, Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export type Mode = 'study' | 'normal'
+export type Mode = "study" | "normal";
 
 const Dashboard = () => {
   const { state, isLoading } = useDecks();
   const { id } = useParams();
 
-  const [mode, setMode] = useState<Mode>('normal')
+  const [mode, setMode] = useState<Mode>("normal");
 
   const currentDeck = state.decks.find((deck) => deck.id === id);
 
@@ -37,22 +37,24 @@ const Dashboard = () => {
       deckId={currentDeck?.id!}
       amount={currentDeck?.flashcards?.length}
     />
-  )
+  );
 
   return (
     <View title={title} subTitle={currentDeck?.description!} isLoading={isLoading}>
-      {mode === 'study' && <FlashcardsView />}
-      {mode === 'normal' && (
+      {mode === "study" && <FlashcardsView />}
+      {mode === "normal" && (
         <div className="flex gap-4 flex-wrap overflow-scroll">
-          {currentDeck?.flashcards?.map((card: FlashCardType) => <FlashCard key={card.id} card={card} />)}
+          {currentDeck?.flashcards?.map((card: FlashCardType) => (
+            <FlashCard key={card.id} card={card} />
+          ))}
         </div>
       )}
       {!currentDeck?.flashcards?.length && <EmptyView />}
     </View>
-  )
-}
+  );
+};
 
-export default Dashboard
+export default Dashboard;
 
 const EmptyView = () => (
   <Empty>
@@ -62,8 +64,7 @@ const EmptyView = () => (
       </EmptyMedia>
       <EmptyTitle>No flashcards yet</EmptyTitle>
       <EmptyDescription>
-        You haven&apos;t created any flashcards yet. Get started by creating
-        your first flashcard.
+        You haven&apos;t created any flashcards yet. Get started by creating your first flashcard.
       </EmptyDescription>
     </EmptyHeader>
     <EmptyContent>
@@ -72,4 +73,4 @@ const EmptyView = () => (
       </div>
     </EmptyContent>
   </Empty>
-)
+);

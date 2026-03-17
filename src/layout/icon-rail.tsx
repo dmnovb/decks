@@ -27,8 +27,7 @@ export function IconRail() {
       {/* Nav icons */}
       <div className="flex flex-col items-center gap-1 flex-1">
         {navItems.map(({ href, icon: Icon, label }) => {
-          const isActive =
-            href === "/" ? pathname === "/" : pathname.startsWith(href);
+          const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
             <Link
               key={href}
@@ -38,7 +37,7 @@ export function IconRail() {
                 "flex items-center justify-center w-8 h-8 rounded-md transition-colors duration-150",
                 isActive
                   ? "text-foreground bg-background-2"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background-2"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background-2",
               )}
             >
               <Icon size={16} />

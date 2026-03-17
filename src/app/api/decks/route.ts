@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   try {
     const decks = await prisma.deck.findMany({
       include: { flashcards: true },
-      where: { userId }
+      where: { userId },
     });
     return new Response(JSON.stringify(decks), { status: 200 });
   } catch (error) {

@@ -9,7 +9,7 @@ interface Param {
 }
 
 const useCreateDeck = () => {
-  const { user } = useAuth()
+  const { user } = useAuth();
   const { dispatch } = useDecks();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -26,7 +26,7 @@ const useCreateDeck = () => {
 
       dispatch({ type: "ADD", deck: await res.json() });
 
-      toast.success('Deck created.')
+      toast.success("Deck created.");
     } catch (err) {
       console.error(err);
     } finally {

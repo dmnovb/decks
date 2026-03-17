@@ -9,35 +9,23 @@ export async function POST(request: NextRequest) {
   try {
     const token = request.cookies.get("auth-token")?.value;
     if (!token) {
-      return Response.json(
-        { success: false, error: "Authentication required" },
-        { status: 401 },
-      );
+      return Response.json({ success: false, error: "Authentication required" }, { status: 401 });
     }
 
     const payload = verifyToken(token) as { userId: string } | null;
     if (!payload) {
-      return Response.json(
-        { success: false, error: "Invalid token" },
-        { status: 401 },
-      );
+      return Response.json({ success: false, error: "Invalid token" }, { status: 401 });
     }
 
     const { prompt, deckId, count: rawCount = 10 } = await request.json();
     const count = Math.min(Math.max(Number(rawCount) || 10, 1), 50);
 
     if (!prompt) {
-      return Response.json(
-        { success: false, error: "Prompt is required" },
-        { status: 400 },
-      );
+      return Response.json({ success: false, error: "Prompt is required" }, { status: 400 });
     }
 
     if (!deckId) {
-      return Response.json(
-        { success: false, error: "Deck ID is required" },
-        { status: 400 },
-      );
+      return Response.json({ success: false, error: "Deck ID is required" }, { status: 400 });
     }
 
     const deck = await prisma.deck.findFirst({
@@ -45,10 +33,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!deck) {
-      return Response.json(
-        { success: false, error: "Deck not found" },
-        { status: 404 },
-      );
+      return Response.json({ success: false, error: "Deck not found" }, { status: 404 });
     }
 
     const fullPrompt = `Generate ${count} high-quality flashcards for: ${prompt}
@@ -70,8 +55,7 @@ Make the flashcards educational, clear, and appropriate for language learning.`;
       messages: [{ role: "user", content: fullPrompt }],
     });
 
-    const responseText =
-      response.content[0].type === "text" ? response.content[0].text : "";
+    const responseText = response.content[0].type === "text" ? response.content[0].text : "";
 
     let flashcardsData;
     try {

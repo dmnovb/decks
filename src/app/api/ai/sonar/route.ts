@@ -39,9 +39,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Claude API Error:", error);
-    return Response.json(
-      { success: false, error: "Failed to process request" },
-      { status: 500 },
-    );
+    return Response.json({ success: false, error: "Failed to process request" }, { status: 500 });
   }
 }

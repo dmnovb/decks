@@ -25,10 +25,7 @@ export async function POST(request: NextRequest) {
     const { message, systemPrompt, context, history } = await request.json();
 
     if (!message) {
-      return Response.json(
-        { success: false, error: "Message is required" },
-        { status: 400 },
-      );
+      return Response.json({ success: false, error: "Message is required" }, { status: 400 });
     }
 
     let system = "";
@@ -60,10 +57,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Claude API Error:", error);
-    return Response.json(
-      { success: false, error: "Failed to process request" },
-      { status: 500 },
-    );
+    return Response.json({ success: false, error: "Failed to process request" }, { status: 500 });
   }
 }
 
@@ -77,10 +71,7 @@ export async function GET(request: NextRequest) {
   const message = searchParams.get("message");
 
   if (!message) {
-    return Response.json(
-      { success: false, error: "Message is required" },
-      { status: 400 },
-    );
+    return Response.json({ success: false, error: "Message is required" }, { status: 400 });
   }
 
   try {
@@ -95,14 +86,9 @@ export async function GET(request: NextRequest) {
           });
 
           for await (const chunk of stream) {
-            if (
-              chunk.type === "content_block_delta" &&
-              chunk.delta.type === "text_delta"
-            ) {
+            if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
               controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({ text: chunk.delta.text })}\n\n`,
-                ),
+                encoder.encode(`data: ${JSON.stringify({ text: chunk.delta.text })}\n\n`),
               );
             }
           }
@@ -122,9 +108,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Streaming Error:", error);
-    return Response.json(
-      { success: false, error: "Failed to process request" },
-      { status: 500 },
-    );
+    return Response.json({ success: false, error: "Failed to process request" }, { status: 500 });
   }
 }

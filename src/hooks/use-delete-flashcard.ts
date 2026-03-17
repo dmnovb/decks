@@ -3,30 +3,30 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 const useDeleteCard = () => {
-    const { dispatch } = useDecks();
+  const { dispatch } = useDecks();
 
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<unknown>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<unknown>(null);
 
-    const handleDelete = useCallback(async (flashcardId: string, deckId: string) => {
-        setIsLoading(true);
-        try {
-            await fetch("/api/flashcards", {
-                method: "DELETE",
-                body: JSON.stringify({ id: flashcardId, deckId }),
-            });
+  const handleDelete = useCallback(async (flashcardId: string, deckId: string) => {
+    setIsLoading(true);
+    try {
+      await fetch("/api/flashcards", {
+        method: "DELETE",
+        body: JSON.stringify({ id: flashcardId, deckId }),
+      });
 
-            dispatch({ type: "DELETE_FLASHCARD", flashcardId, deckId });
+      dispatch({ type: "DELETE_FLASHCARD", flashcardId, deckId });
 
-            toast.success('Card deleted.')
-        } catch (error) {
-            setError(error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
+      toast.success("Card deleted.");
+    } catch (error) {
+      setError(error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-    return { handleDelete, isLoading, error };
+  return { handleDelete, isLoading, error };
 };
 
 export default useDeleteCard;

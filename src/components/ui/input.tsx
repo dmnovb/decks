@@ -1,11 +1,11 @@
-import * as React from "react"
+import * as React from "react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 interface Props extends React.ComponentProps<"input"> {
-  className?: string
-  type?: string
-  level?: "0" | "1" | "2"
+  className?: string;
+  type?: string;
+  level?: "0" | "1" | "2";
 }
 
 function Input({ className, type, level = "1", ...props }: Props) {
@@ -18,11 +18,11 @@ function Input({ className, type, level = "1", ...props }: Props) {
         "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
         "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
         `${level === "0" ? "bg-background-0 border-divider-0" : level === "1" ? "bg-background-1 border-divider-1" : "bg-background-2 border-divider-2"}`,
-        className
+        className,
       )}
       {...props}
     />
-  )
+  );
 }
 
-export { Input }
+export { Input };

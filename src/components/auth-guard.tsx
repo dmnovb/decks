@@ -37,11 +37,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
   }
 
   if (isPublicRoute) {
-    return (
-      <main className="min-h-screen flex items-center justify-center">
-        {children}
-      </main>
-    );
+    return <main className="min-h-screen flex items-center justify-center">{children}</main>;
   }
 
   if (isAuthenticated) {
@@ -50,9 +46,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
         <div className="flex h-screen w-screen overflow-hidden bg-background">
           <IconRail />
           <NavPanel />
-          <main className="flex-1 flex flex-col overflow-y-auto">
-            {children}
-          </main>
+          <main className="flex-1 flex flex-col overflow-y-auto">{children}</main>
         </div>
       </DecksProvider>
     );

@@ -13,10 +13,7 @@ import {
 import { StarIcon } from "@/icons";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAI } from "@/hooks/use-ai";
-import {
-  useConversations,
-  ConversationMessage,
-} from "@/hooks/use-conversations";
+import { useConversations, ConversationMessage } from "@/hooks/use-conversations";
 import { useDecks } from "@/providers/decks-provider";
 import { toast } from "sonner";
 import { Message } from "@/components/chat/message";
@@ -39,17 +36,10 @@ const GREETING_MESSAGE: ChatMessage = {
 const Chat = () => {
   const { sendAgentMessageStream, loading, error } = useAI();
   const { refreshDecks } = useDecks();
-  const {
-    conversations,
-    createConversation,
-    getConversation,
-    addMessage,
-    deleteConversation,
-  } = useConversations();
+  const { conversations, createConversation, getConversation, addMessage, deleteConversation } =
+    useConversations();
 
-  const [currentConversationId, setCurrentConversationId] = useState<
-    string | null
-  >(null);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING_MESSAGE]);
   const [inputValue, setInputValue] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -76,10 +66,7 @@ const Chat = () => {
           }),
         );
         // Add greeting at the start if conversation doesn't start with assistant
-        if (
-          loadedMessages.length === 0 ||
-          loadedMessages[0].role !== "assistant"
-        ) {
+        if (loadedMessages.length === 0 || loadedMessages[0].role !== "assistant") {
           setMessages([GREETING_MESSAGE, ...loadedMessages]);
         } else {
           setMessages(loadedMessages);
@@ -192,8 +179,7 @@ const Chat = () => {
         if (
           result.actionsPerformed.some(
             (action: string) =>
-              action.includes("create_deck") ||
-              action.includes("create_flashcards"),
+              action.includes("create_deck") || action.includes("create_flashcards"),
           )
         ) {
           await refreshDecks();
@@ -225,9 +211,7 @@ const Chat = () => {
     }
   }
 
-  const currentConversation = conversations.find(
-    (c) => c.id === currentConversationId,
-  );
+  const currentConversation = conversations.find((c) => c.id === currentConversationId);
 
   return (
     <div className="box-border m-4 bg-background-1 border border-divider-1 rounded-sm flex flex-col">
@@ -239,9 +223,7 @@ const Chat = () => {
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-medium">Ace</span>
-            <span className="text-xs text-muted-foreground">
-              Your language learning companion
-            </span>
+            <span className="text-xs text-muted-foreground">Your language learning companion</span>
           </div>
         </div>
 
@@ -271,9 +253,7 @@ const Chat = () => {
                     onClick={() => loadConversation(convo.id)}
                     className="flex items-center justify-between group"
                   >
-                    <span className="truncate flex-1">
-                      {convo.title || "Untitled"}
-                    </span>
+                    <span className="truncate flex-1">{convo.title || "Untitled"}</span>
                     <button
                       onClick={(e) => handleDeleteConversation(e, convo.id)}
                       className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded transition-opacity"
@@ -297,20 +277,12 @@ const Chat = () => {
         )}
 
         {messages.map((message) => (
-          <Message
-            key={message.id}
-            role={message.role}
-            content={message.content}
-          />
+          <Message key={message.id} role={message.role} content={message.content} />
         ))}
 
         {/* Text streaming */}
         {isStreaming && streamingContent && (
-          <Message
-            role="assistant"
-            content={streamingContent}
-            isStreaming={true}
-          />
+          <Message role="assistant" content={streamingContent} isStreaming={true} />
         )}
 
         {/* Tool activity pill */}
@@ -318,9 +290,7 @@ const Chat = () => {
           <div className="flex justify-start">
             <div className="bg-background-1 border border-divider-2 rounded-md px-4 py-3 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              <span className="text-xs text-muted-foreground">
-                {toolStatus}
-              </span>
+              <span className="text-xs text-muted-foreground">{toolStatus}</span>
             </div>
           </div>
         )}
@@ -363,9 +333,7 @@ const Chat = () => {
             {loading || isStreaming ? "..." : "Send"}
           </Button>
         </div>
-        {error && (
-          <div className="mt-2 text-xs text-red-500">{String(error)}</div>
-        )}
+        {error && <div className="mt-2 text-xs text-red-500">{String(error)}</div>}
       </form>
     </div>
   );

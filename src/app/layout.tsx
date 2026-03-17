@@ -30,14 +30,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-scroll`}
-      >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-        >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-scroll`}>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
           <AuthProvider>
             <AuthGuard>{children}</AuthGuard>
           </AuthProvider>

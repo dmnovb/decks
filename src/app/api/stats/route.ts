@@ -50,24 +50,27 @@ export async function GET(request: NextRequest) {
     };
 
     // Per-deck stats
-    const deckStats = decks.map((deck) => {
-      const cards = deck.flashcards;
-      const deckReviews = cards.reduce((s, c) => s + c.totalReviews, 0);
-      const deckCorrect = cards.reduce((s, c) => s + c.correctReviews, 0);
-      const deckAccuracy = deckReviews > 0 ? Math.round((deckCorrect / deckReviews) * 100) : 0;
-      const avgInterval = cards.length > 0
-        ? Math.round(cards.reduce((s, c) => s + c.interval, 0) / cards.length)
-        : 0;
-      const dueCount = cards.filter((c) => c.nextReview && new Date(c.nextReview) <= now).length;
-      return {
-        id: deck.id,
-        title: deck.title,
-        cards: cards.length,
-        accuracy: deckAccuracy,
-        avgInterval,
-        dueCount,
-      };
-    }).sort((a, b) => b.dueCount - a.dueCount);
+    const deckStats = decks
+      .map((deck) => {
+        const cards = deck.flashcards;
+        const deckReviews = cards.reduce((s, c) => s + c.totalReviews, 0);
+        const deckCorrect = cards.reduce((s, c) => s + c.correctReviews, 0);
+        const deckAccuracy = deckReviews > 0 ? Math.round((deckCorrect / deckReviews) * 100) : 0;
+        const avgInterval =
+          cards.length > 0
+            ? Math.round(cards.reduce((s, c) => s + c.interval, 0) / cards.length)
+            : 0;
+        const dueCount = cards.filter((c) => c.nextReview && new Date(c.nextReview) <= now).length;
+        return {
+          id: deck.id,
+          title: deck.title,
+          cards: cards.length,
+          accuracy: deckAccuracy,
+          avgInterval,
+          dueCount,
+        };
+      })
+      .sort((a, b) => b.dueCount - a.dueCount);
 
     // Session history (last 20 completed sessions)
     const sessionHistory = sessions

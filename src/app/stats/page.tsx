@@ -13,7 +13,14 @@ interface StatsData {
   bestStreak: number;
   dueNow: number;
   difficultyBuckets: { new: number; hard: number; learning: number; good: number };
-  deckStats: Array<{ id: string; title: string; cards: number; accuracy: number; avgInterval: number; dueCount: number }>;
+  deckStats: Array<{
+    id: string;
+    title: string;
+    cards: number;
+    accuracy: number;
+    avgInterval: number;
+    dueCount: number;
+  }>;
   sessionHistory: Array<{ date: string; accuracy: number; cardCount: number }>;
   heatmap: Array<{ date: string; count: number }>;
 }
@@ -315,7 +322,7 @@ function Heatmap({ data }: { data: StatsData["heatmap"] }) {
   const maxCount = Math.max(1, ...data.map((d) => d.count));
 
   // Split into weeks (columns of 7)
-  const weeks: typeof data[] = [];
+  const weeks: (typeof data)[] = [];
   for (let i = 0; i < data.length; i += 7) {
     weeks.push(data.slice(i, i + 7));
   }
@@ -357,7 +364,10 @@ function Heatmap({ data }: { data: StatsData["heatmap"] }) {
             {weeks.map((_, wi) => {
               const ml = monthLabels.find((m) => m.weekIdx === wi);
               return (
-                <div key={wi} className="w-[10px] text-[9px] text-muted-foreground leading-none shrink-0">
+                <div
+                  key={wi}
+                  className="w-[10px] text-[9px] text-muted-foreground leading-none shrink-0"
+                >
                   {ml ? ml.label : ""}
                 </div>
               );
@@ -404,34 +414,45 @@ function DeckTable({ decks }: { decks: StatsData["deckStats"] }) {
       <table className="w-full text-xs">
         <thead>
           <tr className="border-b border-border">
-            <th className="px-4 py-2 text-left text-[10px] font-medium text-muted-foreground">name</th>
-            <th className="px-4 py-2 text-right text-[10px] font-medium text-muted-foreground">cards</th>
-            <th className="px-4 py-2 text-right text-[10px] font-medium text-muted-foreground">accuracy</th>
-            <th className="px-4 py-2 text-right text-[10px] font-medium text-muted-foreground">avg interval</th>
-            <th className="px-4 py-2 text-right text-[10px] font-medium text-muted-foreground">due</th>
+            <th className="px-4 py-2 text-left text-[10px] font-medium text-muted-foreground">
+              name
+            </th>
+            <th className="px-4 py-2 text-right text-[10px] font-medium text-muted-foreground">
+              cards
+            </th>
+            <th className="px-4 py-2 text-right text-[10px] font-medium text-muted-foreground">
+              accuracy
+            </th>
+            <th className="px-4 py-2 text-right text-[10px] font-medium text-muted-foreground">
+              avg interval
+            </th>
+            <th className="px-4 py-2 text-right text-[10px] font-medium text-muted-foreground">
+              due
+            </th>
           </tr>
         </thead>
         <tbody>
           {decks.map((deck, i) => (
-            <tr
-              key={deck.id}
-              className={i < decks.length - 1 ? "border-b border-border" : ""}
-            >
+            <tr key={deck.id} className={i < decks.length - 1 ? "border-b border-border" : ""}>
               <td className="px-4 py-2.5 text-foreground font-medium truncate max-w-[160px]">
                 {deck.title}
               </td>
-              <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">{deck.cards}</td>
+              <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">
+                {deck.cards}
+              </td>
               <td className="px-4 py-2.5 text-right font-mono">
                 <span
                   className={
                     deck.accuracy >= 80
                       ? "text-success"
                       : deck.accuracy >= 60
-                      ? "text-warning"
-                      : "text-destructive"
+                        ? "text-warning"
+                        : "text-destructive"
                   }
                 >
-                  {deck.cards > 0 && deck.accuracy === 0 && deck.cards === 0 ? "—" : `${deck.accuracy}%`}
+                  {deck.cards > 0 && deck.accuracy === 0 && deck.cards === 0
+                    ? "—"
+                    : `${deck.accuracy}%`}
                 </span>
               </td>
               <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">

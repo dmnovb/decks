@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import { Flashcard } from "@/generated/prisma";
 import { Card } from "@/components/ui/card";
@@ -53,13 +53,7 @@ const difficultyButtons = [
   },
 ];
 
-export function SessionCard({
-  card,
-  showBack,
-  onFlip,
-  onRate,
-  isLoading,
-}: SessionCardProps) {
+export function SessionCard({ card, showBack, onFlip, onRate, isLoading }: SessionCardProps) {
   return (
     <div className="space-y-6">
       {/* Card Display */}
@@ -76,22 +70,13 @@ export function SessionCard({
             {/* Front */}
             {!showBack && (
               <div className="space-y-4">
-                <p className="text-sm text-muted-foreground uppercase tracking-wide">
-                  Question
-                </p>
+                <p className="text-sm text-muted-foreground uppercase tracking-wide">Question</p>
                 <h2 className="text-3xl font-semibold text-foreground leading-relaxed">
                   {card.front}
                 </h2>
-                <Button
-                  onClick={onFlip}
-                  variant="outline"
-                  className="mt-8"
-                  disabled={isLoading}
-                >
+                <Button onClick={onFlip} variant="outline" className="mt-8" disabled={isLoading}>
                   Show Answer
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    (Space)
-                  </span>
+                  <span className="ml-2 text-xs text-muted-foreground">(Space)</span>
                 </Button>
               </div>
             )}
@@ -100,20 +85,14 @@ export function SessionCard({
             {showBack && (
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground uppercase tracking-wide">
-                    Question
-                  </p>
-                  <h3 className="text-xl font-medium text-foreground/80">
-                    {card.front}
-                  </h3>
+                  <p className="text-sm text-muted-foreground uppercase tracking-wide">Question</p>
+                  <h3 className="text-xl font-medium text-foreground/80">{card.front}</h3>
                 </div>
 
                 <div className="h-px bg-border/30" />
 
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground uppercase tracking-wide">
-                    Answer
-                  </p>
+                  <p className="text-sm text-muted-foreground uppercase tracking-wide">Answer</p>
                   <p className="text-2xl text-foreground font-semibold leading-relaxed">
                     {card.back}
                   </p>
@@ -121,12 +100,8 @@ export function SessionCard({
 
                 {card.notes && (
                   <div className="pt-4 space-y-2">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                      Notes
-                    </p>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {card.notes}
-                    </p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Notes</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{card.notes}</p>
                   </div>
                 )}
               </div>
@@ -157,9 +132,7 @@ export function SessionCard({
                 <div className="flex flex-col items-center gap-1">
                   <span className="font-medium">{button.label}</span>
                   <span className="text-xs opacity-70">{button.sublabel}</span>
-                  <span className="text-[10px] text-muted-foreground mt-1">
-                    {index + 1}
-                  </span>
+                  <span className="text-[10px] text-muted-foreground mt-1">{index + 1}</span>
                 </div>
               </Button>
             );
@@ -170,8 +143,8 @@ export function SessionCard({
       {/* Keyboard Hints (only show when front is visible) */}
       {!showBack && (
         <div className="text-center text-xs text-muted-foreground">
-          Press <kbd className="px-2 py-1 bg-muted rounded">Space</kbd> to flip
-          card, or <kbd className="px-2 py-1 bg-muted rounded">?</kbd> for help
+          Press <kbd className="px-2 py-1 bg-muted rounded">Space</kbd> to flip card, or{" "}
+          <kbd className="px-2 py-1 bg-muted rounded">?</kbd> for help
         </div>
       )}
     </div>

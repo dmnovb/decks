@@ -49,12 +49,9 @@ export function useAI() {
     setError(null);
 
     try {
-      const response = await fetch(
-        `/api/ai/stream?message=${encodeURIComponent(message)}`,
-        {
-          method: "GET",
-        },
-      );
+      const response = await fetch(`/api/ai/stream?message=${encodeURIComponent(message)}`, {
+        method: "GET",
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -148,7 +145,7 @@ export function useAI() {
   const sendAgentMessageStream = async (
     message: string,
     history: any[] = [],
-    callbacks: StreamCallbacks = {}
+    callbacks: StreamCallbacks = {},
   ) => {
     setLoading(true);
     setError(null);

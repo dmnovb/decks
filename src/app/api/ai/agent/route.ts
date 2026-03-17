@@ -14,8 +14,14 @@ const tools: Anthropic.Tool[] = [
       type: "object",
       properties: {
         title: { type: "string", description: "The title of the deck" },
-        description: { type: "string", description: "A brief description of what this deck contains" },
-        category: { type: "string", description: 'The category or subject (e.g., "Spanish", "Japanese", "Korean")' },
+        description: {
+          type: "string",
+          description: "A brief description of what this deck contains",
+        },
+        category: {
+          type: "string",
+          description: 'The category or subject (e.g., "Spanish", "Japanese", "Korean")',
+        },
       },
       required: ["title"],
     },
@@ -23,7 +29,8 @@ const tools: Anthropic.Tool[] = [
   {
     type: "custom" as const,
     name: "create_flashcards",
-    description: "Creates multiple flashcards in a specific deck. Use this when user asks to generate or create flashcards.",
+    description:
+      "Creates multiple flashcards in a specific deck. Use this when user asks to generate or create flashcards.",
     input_schema: {
       type: "object",
       properties: {
@@ -48,7 +55,8 @@ const tools: Anthropic.Tool[] = [
   {
     type: "custom" as const,
     name: "create_deck_with_flashcards",
-    description: "Creates a new deck and populates it with flashcards in one operation. Use this when user wants a complete deck created from scratch.",
+    description:
+      "Creates a new deck and populates it with flashcards in one operation. Use this when user wants a complete deck created from scratch.",
     input_schema: {
       type: "object",
       properties: {
@@ -75,13 +83,15 @@ const tools: Anthropic.Tool[] = [
   {
     type: "custom" as const,
     name: "list_user_decks",
-    description: "Lists all decks belonging to the user. Use this when user asks to see their decks or asks which deck to add cards to.",
+    description:
+      "Lists all decks belonging to the user. Use this when user asks to see their decks or asks which deck to add cards to.",
     input_schema: { type: "object", properties: {}, required: [] },
   },
   {
     type: "custom" as const,
     name: "list_user_flashcards_in_deck",
-    description: "Lists all flashcards belonging to a specific deck. Use this when user asks to see the flashcards in a specific deck.",
+    description:
+      "Lists all flashcards belonging to a specific deck. Use this when user asks to see the flashcards in a specific deck.",
     input_schema: {
       type: "object",
       properties: {
@@ -98,7 +108,11 @@ async function executeFunctions(functionName: string, args: any, userId: string)
       const deck = await prisma.deck.create({
         data: { title: args.title, description: args.description, category: args.category, userId },
       });
-      return { success: true, deckId: deck.id, message: `Created deck "${deck.title}" with ID ${deck.id}` };
+      return {
+        success: true,
+        deckId: deck.id,
+        message: `Created deck "${deck.title}" with ID ${deck.id}`,
+      };
     }
     case "create_flashcards": {
       const ownedDeck = await prisma.deck.findFirst({ where: { id: args.deckId, userId } });
@@ -106,7 +120,11 @@ async function executeFunctions(functionName: string, args: any, userId: string)
       const flashcards = await prisma.flashcard.createMany({
         data: args.flashcards.map((card: any) => ({ ...card, deckId: args.deckId })),
       });
-      return { success: true, count: flashcards.count, message: `Created ${flashcards.count} flashcards in deck ${args.deckId}` };
+      return {
+        success: true,
+        count: flashcards.count,
+        message: `Created ${flashcards.count} flashcards in deck ${args.deckId}`,
+      };
     }
     case "create_deck_with_flashcards": {
       const deck = await prisma.deck.create({
@@ -119,7 +137,12 @@ async function executeFunctions(functionName: string, args: any, userId: string)
         },
         include: { flashcards: true },
       });
-      return { success: true, deckId: deck.id, flashcardCount: deck.flashcards.length, message: `Created deck "${deck.title}" with ${deck.flashcards.length} flashcards` };
+      return {
+        success: true,
+        deckId: deck.id,
+        flashcardCount: deck.flashcards.length,
+        message: `Created deck "${deck.title}" with ${deck.flashcards.length} flashcards`,
+      };
     }
     case "list_user_decks": {
       const decks = await prisma.deck.findMany({
@@ -146,7 +169,12 @@ async function executeFunctions(functionName: string, args: any, userId: string)
         success: true,
         deckTitle: deck.title,
         count: flashcards.length,
-        flashcards: flashcards.map((f: any) => ({ id: f.id, front: f.front, back: f.back, notes: f.notes })),
+        flashcards: flashcards.map((f: any) => ({
+          id: f.id,
+          front: f.front,
+          back: f.back,
+          notes: f.notes,
+        })),
         message: `Found ${flashcards.length} flashcard${flashcards.length !== 1 ? "s" : ""} in deck "${deck.title}"`,
       };
     }
@@ -199,7 +227,9 @@ ${process.env.AI_SYSTEM_PROMPT_ACE!}`;
 
     // Handle tool call loop
     while (response.stop_reason === "tool_use") {
-      const toolUseBlocks = response.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
+      const toolUseBlocks = response.content.filter(
+        (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
+      );
 
       messages.push({ role: "assistant", content: response.content });
 
@@ -209,9 +239,17 @@ ${process.env.AI_SYSTEM_PROMPT_ACE!}`;
         try {
           const result = await executeFunctions(call.name, call.input, userId);
           actionsPerformed.push(call.name);
-          toolResults.push({ type: "tool_result", tool_use_id: call.id, content: JSON.stringify(result) });
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: call.id,
+            content: JSON.stringify(result),
+          });
         } catch (error) {
-          toolResults.push({ type: "tool_result", tool_use_id: call.id, content: JSON.stringify({ success: false, error: (error as Error).message }) });
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: call.id,
+            content: JSON.stringify({ success: false, error: (error as Error).message }),
+          });
         }
       }
 
@@ -227,7 +265,8 @@ ${process.env.AI_SYSTEM_PROMPT_ACE!}`;
       });
     }
 
-    const text = response.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text ?? "";
+    const text =
+      response.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text ?? "";
 
     return Response.json({
       success: true,
@@ -237,9 +276,6 @@ ${process.env.AI_SYSTEM_PROMPT_ACE!}`;
     });
   } catch (error) {
     console.error("Agent API Error:", error);
-    return Response.json(
-      { success: false, error: "Failed to process request" },
-      { status: 500 },
-    );
+    return Response.json({ success: false, error: "Failed to process request" }, { status: 500 });
   }
 }

@@ -19,12 +19,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -80,10 +75,7 @@ export function NavPanel() {
         {isLoading && (
           <div className="px-3 space-y-1">
             {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="h-8 rounded-md bg-background-2 animate-pulse"
-              />
+              <div key={i} className="h-8 rounded-md bg-background-2 animate-pulse" />
             ))}
           </div>
         )}
@@ -120,9 +112,7 @@ export function NavPanel() {
                       size={12}
                       className={cn(
                         "shrink-0 transition-opacity",
-                        isActive
-                          ? "opacity-60"
-                          : "opacity-0 group-hover:opacity-40",
+                        isActive ? "opacity-60" : "opacity-0 group-hover:opacity-40",
                       )}
                     />
                   </Link>
@@ -157,10 +147,7 @@ export function NavPanel() {
                 </span>
               </div>
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-              side="top"
-              className="w-48 bg-background-2 border-border"
-            >
+            <DropdownMenuContent side="top" className="w-48 bg-background-2 border-border">
               <DropdownMenuItem
                 onClick={logout}
                 className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
@@ -189,7 +176,9 @@ export function NavPanel() {
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label>Description <span className="text-muted-foreground">(optional)</span></Label>
+              <Label>
+                Description <span className="text-muted-foreground">(optional)</span>
+              </Label>
               <Input
                 placeholder="What's this deck for?"
                 value={description}

@@ -95,13 +95,13 @@ function Swatch({
       title={copied ? "Copied!" : value}
       className={cn(
         "group flex flex-col items-center gap-1 cursor-pointer",
-        small ? "gap-0.5" : "gap-1"
+        small ? "gap-0.5" : "gap-1",
       )}
     >
       <div
         className={cn(
           "rounded border transition-transform group-hover:scale-105",
-          small ? "w-7 h-7" : "w-9 h-9"
+          small ? "w-7 h-7" : "w-9 h-9",
         )}
         style={{
           background: color,
@@ -112,7 +112,7 @@ function Swatch({
         className={cn(
           "font-mono text-center leading-none",
           small ? "text-[9px]" : "text-[10px]",
-          "text-muted-foreground group-hover:text-foreground transition-colors"
+          "text-muted-foreground group-hover:text-foreground transition-colors",
         )}
       >
         {copied ? "✓" : label}
@@ -162,7 +162,7 @@ export function ThemeDock() {
             "rounded-xl border border-divider-1 shadow-2xl backdrop-blur-md",
             "bg-background-1/95 p-4 w-[520px]",
             "flex flex-col gap-4",
-            "animate-in fade-in slide-in-from-bottom-2 duration-200"
+            "animate-in fade-in slide-in-from-bottom-2 duration-200",
           )}
         >
           {/* Header */}
@@ -183,7 +183,7 @@ export function ThemeDock() {
                     "px-3 py-1 rounded-md text-xs font-medium transition-all",
                     activeTheme === t
                       ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {t.charAt(0).toUpperCase() + t.slice(1)}
@@ -218,7 +218,7 @@ export function ThemeDock() {
               className={cn(
                 "text-[11px] font-medium px-3 py-1.5 rounded-lg",
                 "border border-divider-2 bg-background-2 text-foreground",
-                "hover:bg-background-3 transition-colors"
+                "hover:bg-background-3 transition-colors",
               )}
             >
               Switch to {theme === "dark" ? "light" : "dark"}
@@ -235,7 +235,7 @@ export function ThemeDock() {
           "border border-divider-2 bg-background-1/90 backdrop-blur-sm",
           "shadow-lg text-xs font-medium text-foreground",
           "hover:bg-background-2 transition-all duration-150",
-          "hover:shadow-xl hover:-translate-y-0.5"
+          "hover:shadow-xl hover:-translate-y-0.5",
         )}
       >
         {/* Mini swatches preview */}
@@ -259,12 +259,7 @@ export function ThemeDock() {
           ))}
         </span>
         <span>Color Tokens</span>
-        <span
-          className={cn(
-            "transition-transform duration-200",
-            open ? "rotate-180" : "rotate-0"
-          )}
-        >
+        <span className={cn("transition-transform duration-200", open ? "rotate-180" : "rotate-0")}>
           ↑
         </span>
       </button>

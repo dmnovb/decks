@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import { useDecks } from "@/providers/decks-provider";
 import { useRouter } from "next/navigation";
@@ -18,11 +18,11 @@ function DeckGrid() {
   const { decks } = state;
 
   const globalStats = useMemo(() => {
-    const allCards = decks.flatMap(d => d.flashcards || []);
+    const allCards = decks.flatMap((d) => d.flashcards || []);
     const now = new Date();
-    const due = allCards.filter(c => c.nextReview && new Date(c.nextReview) <= now).length;
-    const isNew = allCards.filter(c => c.totalReviews === 0).length;
-    const maxStreak = Math.max(0, ...allCards.map(c => c.streak));
+    const due = allCards.filter((c) => c.nextReview && new Date(c.nextReview) <= now).length;
+    const isNew = allCards.filter((c) => c.totalReviews === 0).length;
+    const maxStreak = Math.max(0, ...allCards.map((c) => c.streak));
     return { due, new: isNew, maxStreak, total: allCards.length };
   }, [decks]);
 
@@ -55,7 +55,7 @@ function DeckGrid() {
       <div className="flex-1 overflow-y-auto p-8">
         {isLoading ? (
           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map(i => (
+            {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-44 rounded-lg bg-background-2 animate-pulse" />
             ))}
           </div>
@@ -69,7 +69,11 @@ function DeckGrid() {
             variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
           >
             {decks.map((deck) => (
-              <DeckCard key={deck.id} deck={deck} onClick={() => router.push(`/decks/${deck.id}`)} />
+              <DeckCard
+                key={deck.id}
+                deck={deck}
+                onClick={() => router.push(`/decks/${deck.id}`)}
+              />
             ))}
           </motion.div>
         )}
@@ -123,8 +127,8 @@ function DeckCard({ deck, onClick }: { deck: Deck; onClick: () => void }) {
                   c.difficulty >= 4
                     ? "bg-success/60"
                     : c.difficulty >= 2
-                    ? "bg-muted-foreground/40"
-                    : "bg-destructive/50"
+                      ? "bg-muted-foreground/40"
+                      : "bg-destructive/50"
                 }`}
               />
             ))}

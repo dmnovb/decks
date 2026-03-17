@@ -41,8 +41,7 @@ const Login = () => {
         {/* Shape 3 */}
         <div
           style={{
-            clipPath:
-              "polygon(30% 10%, 80% 20%, 100% 70%, 60% 90%, 10% 70%, 0 30%)",
+            clipPath: "polygon(30% 10%, 80% 20%, 100% 70%, 60% 90%, 10% 70%, 0 30%)",
             boxShadow:
               "0 0 20px 5px oklch(64.09% 0.105 183.78) inset, 0 0 45px 12px oklch(64.09% 0.105 183.78)",
           }}
@@ -252,13 +251,7 @@ const Noise = () => (
       </filter>
 
       <filter id="animatedNoise">
-        <feTurbulence
-          baseFrequency="0.85"
-          numOctaves="2"
-          result="noise"
-          seed="5"
-          type="turbulence"
-        >
+        <feTurbulence baseFrequency="0.85" numOctaves="2" result="noise" seed="5" type="turbulence">
           <animate
             attributeName="seed"
             values="1;5;10;15;20;25;30;1"
@@ -268,28 +261,13 @@ const Noise = () => (
         </feTurbulence>
         <feColorMatrix in="noise" type="saturate" values="0" />
         <feComponentTransfer>
-          <feFuncA
-            type="discrete"
-            tableValues="0 .3 0 .3 0 .3 0 .3 0 .3 0 .3"
-          />
+          <feFuncA type="discrete" tableValues="0 .3 0 .3 0 .3 0 .3 0 .3 0 .3" />
         </feComponentTransfer>
       </filter>
     </defs>
 
-    <rect
-      width="100%"
-      height="100%"
-      fill="transparent"
-      filter="url(#noise)"
-      opacity="0.08"
-    />
-    <rect
-      width="100%"
-      height="100%"
-      fill="white"
-      filter="url(#animatedNoise)"
-      opacity="0.08"
-    />
+    <rect width="100%" height="100%" fill="transparent" filter="url(#noise)" opacity="0.08" />
+    <rect width="100%" height="100%" fill="white" filter="url(#animatedNoise)" opacity="0.08" />
     <rect width="100%" height="100%" fill="black" opacity="0.015">
       <animate
         attributeName="opacity"

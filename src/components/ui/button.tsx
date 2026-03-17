@@ -20,10 +20,8 @@ const buttonVariants = cva(
           "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20",
         outline:
           "border border-border bg-transparent text-foreground hover:bg-background-2 hover:text-foreground",
-        secondary:
-          "bg-background-2 border border-border text-foreground hover:bg-background-3",
-        ghost:
-          "text-muted-foreground hover:text-foreground hover:bg-background-2",
+        secondary: "bg-background-2 border border-border text-foreground hover:bg-background-3",
+        ghost: "text-muted-foreground hover:text-foreground hover:bg-background-2",
         link: "text-foreground underline-offset-4 hover:underline",
       },
       size: {
@@ -37,17 +35,10 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  }
+  },
 );
 
-function Button({
-  className,
-  variant,
-  size,
-  asChild = false,
-  capitalize,
-  ...props
-}: Props) {
+function Button({ className, variant, size, asChild = false, capitalize, ...props }: Props) {
   const Comp = asChild ? Slot : "button";
 
   return (
