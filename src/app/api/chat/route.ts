@@ -263,6 +263,13 @@ ${memorySection}`;
     async onFinish({ text }) {
       if (conversationId && text) {
         try {
+          // Verify the conversation belongs to the authenticated user before persisting
+          const ownedConvo = await prisma.conversation.findFirst({
+            where: { id: conversationId, userId },
+            select: { id: true },
+          });
+          if (!ownedConvo) return;
+
           const lastUserMsg = messages.filter((m: UIMessage) => m.role === "user").pop();
           if (lastUserMsg) {
             const userText = lastUserMsg.parts

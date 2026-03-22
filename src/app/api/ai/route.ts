@@ -18,14 +18,20 @@ function getAuthenticatedUserId(request: NextRequest): string | null {
 export async function POST(request: NextRequest) {
   const userId = getAuthenticatedUserId(request);
   if (!userId) {
-    return Response.json({ success: false, error: "Authentication required" }, { status: 401 });
+    return Response.json(
+      { success: false, error: "Authentication required" },
+      { status: 401 },
+    );
   }
 
   try {
     const { message, systemPrompt, context, history } = await request.json();
 
     if (!message) {
-      return Response.json({ success: false, error: "Message is required" }, { status: 400 });
+      return Response.json(
+        { success: false, error: "Message is required" },
+        { status: 400 },
+      );
     }
 
     let system = "";
@@ -48,7 +54,8 @@ export async function POST(request: NextRequest) {
       temperature: TEMPERATURE,
     });
 
-    const text = response.content[0].type === "text" ? response.content[0].text : "";
+    const text =
+      response.content[0].type === "text" ? response.content[0].text : "";
 
     return Response.json({
       success: true,
@@ -57,21 +64,30 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Claude API Error:", error);
-    return Response.json({ success: false, error: "Failed to process request" }, { status: 500 });
+    return Response.json(
+      { success: false, error: "Failed to process request" },
+      { status: 500 },
+    );
   }
 }
 
 export async function GET(request: NextRequest) {
   const userId = getAuthenticatedUserId(request);
   if (!userId) {
-    return Response.json({ success: false, error: "Authentication required" }, { status: 401 });
+    return Response.json(
+      { success: false, error: "Authentication required" },
+      { status: 401 },
+    );
   }
 
   const { searchParams } = new URL(request.url);
   const message = searchParams.get("message");
 
   if (!message) {
-    return Response.json({ success: false, error: "Message is required" }, { status: 400 });
+    return Response.json(
+      { success: false, error: "Message is required" },
+      { status: 400 },
+    );
   }
 
   try {
@@ -86,9 +102,14 @@ export async function GET(request: NextRequest) {
           });
 
           for await (const chunk of stream) {
-            if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
+            if (
+              chunk.type === "content_block_delta" &&
+              chunk.delta.type === "text_delta"
+            ) {
               controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ text: chunk.delta.text })}\n\n`),
+                encoder.encode(
+                  `data: ${JSON.stringify({ text: chunk.delta.text })}\n\n`,
+                ),
               );
             }
           }
@@ -108,6 +129,9 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Streaming Error:", error);
-    return Response.json({ success: false, error: "Failed to process request" }, { status: 500 });
+    return Response.json(
+      { success: false, error: "Failed to process request" },
+      { status: 500 },
+    );
   }
 }
