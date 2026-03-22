@@ -103,7 +103,7 @@ export const AppSidebar = () => {
     // No-op if dropped in the same location
     if (currentDeck?.folderId === targetFolderId) return;
 
-    handleMove(deckId, targetFolderId);
+    handleMove(deckId, targetFolderId, currentDeck?.folderId);
   };
 
   return (
