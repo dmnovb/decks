@@ -22,7 +22,12 @@ interface SessionSetupProps {
   allCards: Flashcard[];
 }
 
-export function SessionSetup({ isOpen, onClose, onStart, allCards }: SessionSetupProps) {
+export function SessionSetup({
+  isOpen,
+  onClose,
+  onStart,
+  allCards,
+}: SessionSetupProps) {
   const [maxCards, setMaxCards] = useState<number | undefined>(20);
   const [maxNewCards, setMaxNewCards] = useState<number | undefined>(5);
   const [dueOnly, setDueOnly] = useState(true);
@@ -31,9 +36,14 @@ export function SessionSetup({ isOpen, onClose, onStart, allCards }: SessionSetu
   // Calculate preview counts
   const dueCards = allCards.filter(isCardDue);
   const newCards = allCards.filter(isCardNew);
-  const reviewCards = allCards.filter((c) => !isCardNew(c) && (dueOnly ? isCardDue(c) : true));
+  const reviewCards = allCards.filter(
+    (c) => !isCardNew(c) && (dueOnly ? isCardDue(c) : true),
+  );
 
-  const estimatedNewCards = Math.min(maxNewCards || newCards.length, newCards.length);
+  const estimatedNewCards = Math.min(
+    maxNewCards || newCards.length,
+    newCards.length,
+  );
   const estimatedReviewCards = Math.min(
     (maxCards || allCards.length) - estimatedNewCards,
     reviewCards.length,
@@ -79,7 +89,9 @@ export function SessionSetup({ isOpen, onClose, onStart, allCards }: SessionSetu
               <div className="h-px bg-border my-2" />
               <div className="flex justify-between text-base">
                 <span className="font-medium">Session preview:</span>
-                <span className="font-bold text-primary">{estimatedTotal} cards</span>
+                <span className="font-bold text-primary">
+                  {estimatedTotal} cards
+                </span>
               </div>
               <div className="text-xs text-muted-foreground pl-4">
                 {estimatedNewCards} new • {estimatedReviewCards} review
@@ -152,12 +164,12 @@ export function SessionSetup({ isOpen, onClose, onStart, allCards }: SessionSetu
                 aria-checked={dueOnly}
                 onClick={() => setDueOnly(!dueOnly)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  dueOnly ? "bg-primary" : "bg-muted"
+                  dueOnly ? "bg-primary" : "bg-input border border-border"
                 }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    dueOnly ? "translate-x-6" : "translate-x-1"
+                  className={`inline-block h-4 w-4 transform rounded-full transition-transform ${
+                    dueOnly ? "translate-x-6 bg-primary-foreground" : "translate-x-1 bg-foreground"
                   }`}
                 />
               </button>
@@ -174,12 +186,12 @@ export function SessionSetup({ isOpen, onClose, onStart, allCards }: SessionSetu
                 aria-checked={shuffled}
                 onClick={() => setShuffled(!shuffled)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  shuffled ? "bg-primary" : "bg-muted"
+                  shuffled ? "bg-primary" : "bg-input border border-border"
                 }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    shuffled ? "translate-x-6" : "translate-x-1"
+                  className={`inline-block h-4 w-4 transform rounded-full transition-transform ${
+                    shuffled ? "translate-x-6 bg-primary-foreground" : "translate-x-1 bg-foreground"
                   }`}
                 />
               </button>
@@ -196,7 +208,11 @@ export function SessionSetup({ isOpen, onClose, onStart, allCards }: SessionSetu
           <Button variant="outline" onClick={onClose} className="flex-1">
             Cancel
           </Button>
-          <Button onClick={handleStart} className="flex-1" disabled={estimatedTotal === 0}>
+          <Button
+            onClick={handleStart}
+            className="flex-1"
+            disabled={estimatedTotal === 0}
+          >
             Start Session ({estimatedTotal} cards)
           </Button>
         </div>

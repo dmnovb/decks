@@ -1,23 +1,26 @@
 "use client";
 
+import { StarIcon } from "@/icons";
+
 export function TypingIndicator() {
   return (
-    <div className="flex justify-start">
-      <div className="bg-background-1 border border-divider-2 rounded-md px-4 py-3">
-        <div className="flex items-center gap-1">
-          <span
-            className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
-            style={{ animationDelay: "0ms" }}
-          />
-          <span
-            className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
-            style={{ animationDelay: "150ms" }}
-          />
-          <span
-            className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
-            style={{ animationDelay: "300ms" }}
-          />
-        </div>
+    <div className="flex justify-start gap-2.5">
+      <div className="shrink-0 mt-0.5 w-5 h-5 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center">
+        <StarIcon size={10} className="text-primary" />
+      </div>
+      <div className="flex items-center gap-1 pt-1">
+        <span
+          className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce"
+          style={{ animationDelay: "0ms", animationDuration: "1s" }}
+        />
+        <span
+          className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce"
+          style={{ animationDelay: "180ms", animationDuration: "1s" }}
+        />
+        <span
+          className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce"
+          style={{ animationDelay: "360ms", animationDuration: "1s" }}
+        />
       </div>
     </div>
   );

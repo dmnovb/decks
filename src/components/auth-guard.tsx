@@ -4,7 +4,8 @@ import { useAuth } from "@/providers/auth-provider";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { DecksProvider } from "@/providers";
-import { IconRail } from "@/layout/icon-rail";
+import { FoldersProvider } from "@/providers/folders-provider";
+import { ChatStateProvider } from "@/providers/chat-state-provider";
 import { NavPanel } from "@/layout/nav-panel";
 
 interface AuthGuardProps {
@@ -43,11 +44,14 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
   if (isAuthenticated) {
     return (
       <DecksProvider>
-        <div className="flex h-screen w-screen overflow-hidden bg-background">
-          <IconRail />
-          <NavPanel />
-          <main className="flex-1 flex flex-col overflow-y-auto">{children}</main>
-        </div>
+        <FoldersProvider>
+          <ChatStateProvider>
+            <div className="flex h-screen w-screen overflow-hidden bg-background">
+              <NavPanel />
+              <main className="flex-1 flex flex-col overflow-y-auto">{children}</main>
+            </div>
+          </ChatStateProvider>
+        </FoldersProvider>
       </DecksProvider>
     );
   }

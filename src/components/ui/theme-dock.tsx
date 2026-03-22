@@ -149,7 +149,14 @@ function Section({
 export function ThemeDock() {
   const [open, setOpen] = useState(false);
   const [activeTheme, setActiveTheme] = useState<"light" | "dark">("light");
+  const [font, setFont] = useState<"geist" | "inter">("geist");
   const { theme, setTheme } = useTheme();
+
+  const toggleFont = (next: "geist" | "inter") => {
+    setFont(next);
+    document.body.style.fontFamily =
+      next === "inter" ? "var(--font-inter)" : "var(--font-geist-sans)";
+  };
 
   const tokens = activeTheme === "light" ? lightTokens : darkTokens;
 
@@ -223,6 +230,30 @@ export function ThemeDock() {
             >
               Switch to {theme === "dark" ? "light" : "dark"}
             </button>
+          </div>
+
+          {/* Font switcher */}
+          <div className="h-px bg-divider-1" />
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-muted-foreground">
+              Font: <span className="text-foreground font-medium">{font === "geist" ? "Geist" : "Inter"}</span>
+            </span>
+            <div className="flex items-center gap-1 p-0.5 rounded-lg border border-divider-1 bg-background-2">
+              {(["geist", "inter"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => toggleFont(f)}
+                  className={cn(
+                    "px-3 py-1 rounded-md text-xs font-medium transition-all",
+                    font === f
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {f === "geist" ? "Geist" : "Inter"}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

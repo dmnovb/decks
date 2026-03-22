@@ -34,14 +34,55 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { title, description } = await request.json();
+    const { title, description, folderId } = await request.json();
 
     const deck = await prisma.deck.create({
-      data: { title, description, userId },
+      data: { title, description, folderId, userId },
     });
 
     return new Response(JSON.stringify(deck), { status: 201 });
   } catch (error) {
+    return new Response("Internal Server Error", { status: 500 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  const userId = getAuthenticatedUserId(request);
+  if (!userId) {
+    return new Response("Authentication required", { status: 401 });
+  }
+
+  try {
+    const { id, folderId, title, description } = await request.json();
+
+    if (!id) {
+      return new Response("Deck ID is required", { status: 400 });
+    }
+
+    // Validate deck and folder in parallel when both needed
+    const [deck, folder] = await Promise.all([
+      prisma.deck.findFirst({ where: { id, userId } }),
+      folderId ? prisma.folder.findFirst({ where: { id: folderId, userId } }) : null,
+    ]);
+    if (!deck) {
+      return new Response("Deck not found", { status: 404 });
+    }
+    if (folderId && !folder) {
+      return new Response("Folder not found", { status: 404 });
+    }
+
+    const updated = await prisma.deck.update({
+      where: { id },
+      data: {
+        ...(folderId !== undefined && { folderId: folderId ?? null }),
+        ...(title !== undefined && { title }),
+        ...(description !== undefined && { description }),
+      },
+    });
+
+    return new Response(JSON.stringify(updated), { status: 200 });
+  } catch (error) {
+    console.error("Update deck error:", error);
     return new Response("Internal Server Error", { status: 500 });
   }
 }

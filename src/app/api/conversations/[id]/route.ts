@@ -59,11 +59,11 @@ export async function POST(request: Request, context: RouteContext) {
     if (!["user", "assistant"].includes(role))
       return Response.json({ message: "Invalid role" }, { status: 400 });
 
-    const message = await prisma.message.create({
-      data: { conversationId: id, role, content },
-    });
-
-    await prisma.conversation.update({ where: { id }, data: { updatedAt: new Date() } });
+    // Create message and touch conversation timestamp in parallel
+    const [message] = await Promise.all([
+      prisma.message.create({ data: { conversationId: id, role, content } }),
+      prisma.conversation.update({ where: { id }, data: { updatedAt: new Date() } }),
+    ]);
 
     return Response.json({ success: true, message });
   } catch (error) {
@@ -87,6 +87,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     });
     if (!convo) return Response.json({ message: "Not found" }, { status: 404 });
 
+    // Messages must be deleted before conversation (FK constraint)
     await prisma.message.deleteMany({ where: { conversationId: id } });
     await prisma.conversation.delete({ where: { id } });
 

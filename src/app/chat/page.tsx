@@ -1,6 +1,5 @@
 "use client";
 
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,224 +9,248 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { StarIcon } from "@/icons";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useAI } from "@/hooks/use-ai";
-import { useConversations, ConversationMessage } from "@/hooks/use-conversations";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport, UIMessage } from "ai";
+import {
+  useConversations,
+  ConversationMessage,
+} from "@/hooks/use-conversations";
 import { useDecks } from "@/providers/decks-provider";
 import { toast } from "sonner";
 import { Message } from "@/components/chat/message";
-import { TypingIndicator } from "@/components/chat/typing-indicator";
-import { ChevronDown, Plus, Trash2, MessageSquare } from "lucide-react";
+import { StarIcon } from "@/icons";
+import { useChatState } from "@/providers/chat-state-provider";
+import {
+  ArrowUp,
+  ChevronDown,
+  Plus,
+  Trash2,
+  MessageSquare,
+} from "lucide-react";
 
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
-
-const GREETING_MESSAGE: ChatMessage = {
+const GREETING: UIMessage = {
   id: "greeting",
   role: "assistant",
-  content:
-    "Hi! I'm Ace, your language learning assistant. I can help you create flashcard decks, generate practice materials, and answer questions. What would you like to learn today?",
+  parts: [
+    {
+      type: "text",
+      text: "Hi! I'm Ace, your language learning assistant. I can help you create flashcard decks, generate practice materials, and answer questions. What would you like to learn today?",
+    },
+  ],
 };
 
+/** Extract text content from a UIMessage's parts. */
+function getMessageText(message: UIMessage): string {
+  return message.parts
+    .filter((p): p is { type: "text"; text: string } => p.type === "text")
+    .map((p) => p.text)
+    .join("");
+}
+
 const Chat = () => {
-  const { sendAgentMessageStream, loading, error } = useAI();
   const { refreshDecks } = useDecks();
-  const { conversations, createConversation, getConversation, addMessage, deleteConversation } =
-    useConversations();
+  const {
+    conversations,
+    createConversation,
+    getConversation,
+    deleteConversation,
+  } = useConversations();
 
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([GREETING_MESSAGE]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingContent, setStreamingContent] = useState("");
-  const [toolStatus, setToolStatus] = useState<string | null>(null);
+  const [showTopShadow, setShowTopShadow] = useState(false);
+  const [showBottomShadow, setShowBottomShadow] = useState(false);
 
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollRafRef = useRef<number | null>(null);
+  const conversationIdRef = useRef<string | null>(null);
+  conversationIdRef.current = conversationId;
 
-  // Auto-scroll to bottom
+  // Track inputValue in a ref so unmount cleanup can read the latest value
+  const inputValueRef = useRef(inputValue);
+  inputValueRef.current = inputValue;
+
+  // Holds a scroll position to restore after messages load (used once, then cleared)
+  const pendingScrollRef = useRef<number | null>(null);
+
+  const { getState, saveState } = useChatState();
+
+  // Lazy-init: if there's a saved conversation, start hidden so we never flash the empty state
+  const [isRestoring, setIsRestoring] = useState(() => getState().conversationId !== null);
+
+  const {
+    messages,
+    setMessages,
+    sendMessage,
+    status,
+    error,
+  } = useChat({
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      credentials: "include",
+      body: () => ({ conversationId: conversationIdRef.current }),
+    }),
+    messages: [GREETING],
+    onFinish: async () => {
+      await refreshDecks();
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to process your request.");
+    },
+  });
+
+  const isStreaming = status === "streaming";
+  const isLoading = status === "submitted" || isStreaming;
+
+  // --- Scroll shadows ---
+  const updateShadows = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    setShowTopShadow(el.scrollTop > 8);
+    setShowBottomShadow(
+      el.scrollTop + el.clientHeight < el.scrollHeight - 8,
+    );
+  }, []);
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, streamingContent]);
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", updateShadows, { passive: true });
+    updateShadows();
+    return () => el.removeEventListener("scroll", updateShadows);
+  }, [updateShadows]);
 
-  // Load conversation when selected
+  useEffect(() => {
+    updateShadows();
+  }, [messages, updateShadows]);
+
+  useEffect(() => {
+    if (isStreaming) return;
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    if (pendingScrollRef.current !== null) {
+      el.scrollTop = pendingScrollRef.current;
+      pendingScrollRef.current = null;
+      return;
+    }
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [messages, isStreaming]);
+
+  useEffect(() => {
+    if (!isStreaming) return;
+    const tick = () => {
+      const el = scrollContainerRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+      scrollRafRef.current = requestAnimationFrame(tick);
+    };
+    scrollRafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current);
+    };
+  }, [isStreaming]);
+
+  // --- Chat state persistence (survives SPA navigation) ---
+  // Restore on mount
+  useEffect(() => {
+    const saved = getState();
+    if (saved.draft) setInputValue(saved.draft);
+    if (saved.conversationId) {
+      pendingScrollRef.current = saved.scrollTop;
+      loadConversation(saved.conversationId).then(() => setIsRestoring(false));
+    }
+    // Save on unmount
+    return () => {
+      saveState({
+        conversationId: conversationIdRef.current,
+        draft: inputValueRef.current,
+        scrollTop: scrollContainerRef.current?.scrollTop ?? 0,
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // --- Conversation management ---
   const loadConversation = useCallback(
-    async (conversationId: string) => {
-      const conversation = await getConversation(conversationId);
-      if (conversation && conversation.messages) {
-        const loadedMessages: ChatMessage[] = conversation.messages.map(
+    async (id: string) => {
+      const conversation = await getConversation(id);
+      if (conversation?.messages) {
+        const loaded: UIMessage[] = conversation.messages.map(
           (msg: ConversationMessage) => ({
             id: msg.id,
             role: msg.role as "user" | "assistant",
-            content: msg.content,
+            parts: [{ type: "text" as const, text: msg.content }],
           }),
         );
-        // Add greeting at the start if conversation doesn't start with assistant
-        if (loadedMessages.length === 0 || loadedMessages[0].role !== "assistant") {
-          setMessages([GREETING_MESSAGE, ...loadedMessages]);
-        } else {
-          setMessages(loadedMessages);
-        }
-        setCurrentConversationId(conversationId);
+        setMessages(
+          loaded.length === 0 || loaded[0].role !== "assistant"
+            ? [GREETING, ...loaded]
+            : loaded,
+        );
+        setConversationId(id);
       }
     },
-    [getConversation],
+    [getConversation, setMessages],
   );
 
-  // Start new conversation
   const startNewConversation = useCallback(() => {
-    setCurrentConversationId(null);
-    setMessages([GREETING_MESSAGE]);
+    setConversationId(null);
+    setMessages([GREETING]);
     setInputValue("");
-  }, []);
+  }, [setMessages]);
 
-  // Delete a conversation
   const handleDeleteConversation = useCallback(
     async (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
       try {
         await deleteConversation(id);
-        if (currentConversationId === id) {
-          startNewConversation();
-        }
+        if (conversationId === id) startNewConversation();
         toast.success("Conversation deleted");
       } catch {
         toast.error("Failed to delete conversation");
       }
     },
-    [deleteConversation, currentConversationId, startNewConversation],
+    [deleteConversation, conversationId, startNewConversation],
   );
 
-  const TOOL_LABELS: Record<string, string> = {
-    create_deck: "Creating deck...",
-    create_flashcards: "Adding flashcards...",
-    create_deck_with_flashcards: "Creating deck with flashcards...",
-    list_user_decks: "Fetching your decks...",
-    list_user_flashcards_in_deck: "Fetching flashcards...",
-  };
-
-  async function handleSend() {
+  const handleSend = useCallback(async () => {
     const trimmed = inputValue.trim();
-    if (!trimmed || loading || isStreaming) return;
+    if (!trimmed || isLoading) return;
 
-    const userMsg: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: trimmed,
-    };
-    const assistantId = crypto.randomUUID();
-
-    // Add user message to UI
-    setMessages((prev) => [...prev, userMsg]);
-    setInputValue("");
-    setIsStreaming(true);
-    setStreamingContent("");
-
-    try {
-      // Create conversation if this is the first message
-      let conversationId = currentConversationId;
-      if (!conversationId) {
-        const title = trimmed.slice(0, 50) + (trimmed.length > 50 ? "..." : "");
+    let activeConvoId = conversationId;
+    if (!activeConvoId) {
+      try {
+        const title =
+          trimmed.slice(0, 50) + (trimmed.length > 50 ? "..." : "");
         const newConvo = await createConversation(title);
-        conversationId = newConvo.id;
-        setCurrentConversationId(conversationId);
+        activeConvoId = newConvo.id;
+        setConversationId(activeConvoId);
+        conversationIdRef.current = activeConvoId;
+      } catch {
+        toast.error("Failed to create conversation");
+        return;
       }
-
-      // Save user message to database
-      await addMessage(conversationId, "user", trimmed);
-
-      // Build history for the agent (exclude greeting)
-      const history = messages
-        .filter((msg) => msg.id !== "greeting")
-        .map((msg) => ({
-          role: msg.role,
-          content: msg.content,
-        }));
-
-      // Call agent with streaming
-      const result = await sendAgentMessageStream(trimmed, history, {
-        onText: (_text, full) => {
-          setToolStatus(null);
-          setStreamingContent(full);
-        },
-        onFunctionStart: (functions) => {
-          setToolStatus(TOOL_LABELS[functions[0]] ?? "Working...");
-        },
-        onFunctionComplete: (_actions) => {
-          setToolStatus(null);
-        },
-        onError: (err) => {
-          toast.error(err);
-        },
-      });
-
-      // Add assistant response to UI
-      setMessages((prev) => [
-        ...prev,
-        { id: assistantId, role: "assistant", content: result.response },
-      ]);
-      setStreamingContent("");
-
-      // Save assistant message to database
-      await addMessage(conversationId, "assistant", result.response);
-
-      // Check if any database actions were performed
-      if (result.actionsPerformed.length > 0) {
-        if (
-          result.actionsPerformed.some(
-            (action: string) =>
-              action.includes("create_deck") || action.includes("create_flashcards"),
-          )
-        ) {
-          await refreshDecks();
-        }
-
-        if (
-          result.actionsPerformed.includes("create_deck") ||
-          result.actionsPerformed.includes("create_deck_with_flashcards")
-        ) {
-          toast.success("Deck created successfully! Check your sidebar.");
-        } else if (result.actionsPerformed.includes("create_flashcards")) {
-          toast.success("Flashcards added successfully!");
-        }
-      }
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: assistantId,
-          role: "assistant",
-          content: "Sorry, I couldn't respond. Please try again.",
-        },
-      ]);
-      toast.error("Failed to process your request. Please try again.");
-    } finally {
-      setIsStreaming(false);
-      setStreamingContent("");
-      setToolStatus(null);
     }
-  }
 
-  const currentConversation = conversations.find((c) => c.id === currentConversationId);
+    setInputValue("");
+    sendMessage({ text: trimmed });
+  }, [inputValue, isLoading, conversationId, createConversation, sendMessage]);
+
+  const currentConversation = conversations.find(
+    (c) => c.id === conversationId,
+  );
 
   return (
-    <div className="box-border m-4 bg-background-1 border border-divider-1 rounded-sm flex flex-col">
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b border-divider-1 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/10 w-fit rounded-full border border-primary flex items-center justify-center">
-            <StarIcon className="text-primary" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-medium">Ace</span>
-            <span className="text-xs text-muted-foreground">Your language learning companion</span>
-          </div>
+      <div className="flex items-center justify-between px-8 py-5 border-b border-border shrink-0">
+        <div>
+          <h1 className="text-sm font-semibold text-foreground">Ace</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Your language learning companion
+          </p>
         </div>
 
-        {/* Conversation Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="gap-2">
@@ -253,7 +276,9 @@ const Chat = () => {
                     onClick={() => loadConversation(convo.id)}
                     className="flex items-center justify-between group"
                   >
-                    <span className="truncate flex-1">{convo.title || "Untitled"}</span>
+                    <span className="truncate flex-1">
+                      {convo.title || "Untitled"}
+                    </span>
                     <button
                       onClick={(e) => handleDeleteConversation(e, convo.id)}
                       className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded transition-opacity"
@@ -269,37 +294,80 @@ const Chat = () => {
       </div>
 
       {/* Messages */}
-      <div className="px-4 py-6 flex-1 min-h-[360px] max-h-[65vh] overflow-y-auto flex flex-col gap-4">
-        {messages.length === 0 && (
-          <div className="text-sm text-muted-foreground self-center py-8">
-            Start a conversation with Ace…
-          </div>
-        )}
+      <div className="relative flex-1 min-h-0">
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-12 z-10 transition-opacity duration-300"
+          style={{
+            opacity: showTopShadow ? 1 : 0,
+            background:
+              "linear-gradient(to bottom, var(--background) 0%, transparent 100%)",
+          }}
+        />
 
-        {messages.map((message) => (
-          <Message key={message.id} role={message.role} content={message.content} />
-        ))}
+        <div
+          ref={scrollContainerRef}
+          className="h-full overflow-y-auto px-8 py-6 flex flex-col gap-4 transition-opacity duration-300"
+          style={{ opacity: isRestoring ? 0 : 1 }}
+        >
+          {messages.map((message) => {
+            if (message.role !== "user" && message.role !== "assistant")
+              return null;
+            const text = getMessageText(message);
+            if (!text) return null;
 
-        {/* Text streaming */}
-        {isStreaming && streamingContent && (
-          <Message role="assistant" content={streamingContent} isStreaming={true} />
-        )}
+            const isLastAssistant =
+              message.role === "assistant" &&
+              message.id ===
+                messages.filter((m) => m.role === "assistant").pop()?.id;
 
-        {/* Tool activity pill */}
-        {isStreaming && !streamingContent && toolStatus && (
-          <div className="flex justify-start">
-            <div className="bg-background-1 border border-divider-2 rounded-md px-4 py-3 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              <span className="text-xs text-muted-foreground">{toolStatus}</span>
+            return (
+              <Message
+                key={message.id}
+                role={message.role}
+                content={text}
+                isStreaming={isStreaming && !!isLastAssistant}
+              />
+            );
+          })}
+
+          {/* Loading indicator when waiting for first token */}
+          {status === "submitted" && (
+            <div className="flex justify-start gap-2.5">
+              <div className="shrink-0 mt-0.5 w-5 h-5 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center">
+                <StarIcon size={10} className="text-primary" />
+              </div>
+              <div className="flex items-center gap-1 pt-1">
+                <span
+                  className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce"
+                  style={{ animationDelay: "0ms", animationDuration: "1s" }}
+                />
+                <span
+                  className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce"
+                  style={{
+                    animationDelay: "180ms",
+                    animationDuration: "1s",
+                  }}
+                />
+                <span
+                  className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce"
+                  style={{
+                    animationDelay: "360ms",
+                    animationDuration: "1s",
+                  }}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* Default typing indicator */}
-        {isStreaming && !streamingContent && !toolStatus && <TypingIndicator />}
-
-        {/* Auto-scroll sentinel */}
-        <div ref={bottomRef} />
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-12 z-10 transition-opacity duration-300"
+          style={{
+            opacity: showBottomShadow ? 1 : 0,
+            background:
+              "linear-gradient(to top, var(--background) 0%, transparent 100%)",
+          }}
+        />
       </div>
 
       {/* Input */}
@@ -308,12 +376,17 @@ const Chat = () => {
           e.preventDefault();
           handleSend();
         }}
-        className="p-3 border-t border-divider-1 bg-background-1 rounded-b-sm"
+        className="px-8 py-4 border-t border-border shrink-0"
       >
-        <div className="flex items-center gap-2">
-          <Input
+        <div className="flex items-end gap-2 bg-background-2 border border-divider-1 rounded-sm px-3 py-2 focus-within:border-divider-2 transition-colors">
+          <textarea
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={(e) => {
+              setInputValue(e.target.value);
+              e.target.style.height = "auto";
+              e.target.style.height =
+                Math.min(e.target.scrollHeight, 120) + "px";
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -321,19 +394,24 @@ const Chat = () => {
               }
             }}
             placeholder="Chat with Ace…"
-            disabled={loading || isStreaming}
+            disabled={isLoading}
             autoFocus
+            rows={1}
+            className="flex-1 bg-transparent resize-none text-sm outline-none placeholder:text-muted-foreground/50 min-h-[24px] max-h-[120px] py-0.5 leading-relaxed"
           />
           <Button
             type="submit"
-            onClick={handleSend}
+            size="sm"
             variant="default"
-            disabled={loading || isStreaming}
+            disabled={isLoading || !inputValue.trim()}
+            className="shrink-0 h-7 w-7 p-0 rounded-sm"
           >
-            {loading || isStreaming ? "..." : "Send"}
+            <ArrowUp className="w-3.5 h-3.5" />
           </Button>
         </div>
-        {error && <div className="mt-2 text-xs text-red-500">{String(error)}</div>}
+        {error && (
+          <div className="mt-2 text-xs text-red-500">{String(error)}</div>
+        )}
       </form>
     </div>
   );

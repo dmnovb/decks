@@ -34,6 +34,7 @@ export function useConversations() {
   } = useSWR<Conversation[]>("/api/conversations", fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 30000,
+    fallbackData: [],
   });
 
   const createConversation = async (
@@ -48,8 +49,10 @@ export function useConversations() {
     });
     if (!res.ok) throw new Error("Failed to create conversation");
     const data = await res.json();
-    await mutate();
-    return data.conversation as Conversation;
+    const convo = data.conversation as Conversation;
+    // Optimistic update — avoid refetching all conversations
+    await mutate((current) => [...(current || []), convo], { revalidate: false });
+    return convo;
   };
 
   const getConversation = async (id: string): Promise<Conversation | null> => {
@@ -74,12 +77,21 @@ export function useConversations() {
   };
 
   const deleteConversation = async (id: string) => {
-    const res = await fetch(`/api/conversations/${id}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-    if (!res.ok) throw new Error("Failed to delete conversation");
-    await mutate();
+    await mutate(
+      async (current) => {
+        const res = await fetch(`/api/conversations/${id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to delete conversation");
+        return current?.filter((c) => c.id !== id) ?? [];
+      },
+      {
+        optimisticData: (current) => current?.filter((c) => c.id !== id) ?? [],
+        revalidate: false,
+        rollbackOnError: true,
+      },
+    );
   };
 
   const updateTitle = async (id: string, title: string) => {
@@ -90,7 +102,11 @@ export function useConversations() {
       body: JSON.stringify({ title }),
     });
     if (!res.ok) throw new Error("Failed to update title");
-    await mutate();
+    // Optimistic update — avoid refetching all conversations
+    await mutate(
+      (current) => current?.map((c) => (c.id === id ? { ...c, title } : c)) ?? [],
+      { revalidate: false },
+    );
   };
 
   return {

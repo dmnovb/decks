@@ -67,8 +67,6 @@ const useUpdateFlashcard = () => {
           deckId: flashcard.deckId,
         });
 
-        // Show success feedback
-        toast.success("Card saved!", { duration: 1500 });
 
         // Show streak milestone notifications (every 5)
         if (streak > 0 && streak % 5 === 0) {
