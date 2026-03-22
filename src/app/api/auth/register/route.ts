@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const existingUser = await getUserByEmail(email);
 
     if (existingUser) {
-      return Response.json({ message: "User already exists" }, { status: 400 });
+      return Response.json({ message: "Invalid request" }, { status: 400 });
     }
     const user = await createUser(name, password, email);
 

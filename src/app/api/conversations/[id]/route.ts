@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
+import { verifyToken } from "@/lib/auth/helpers";
 import prisma from "@/lib/prisma";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -10,9 +10,9 @@ export async function GET(_request: Request, context: RouteContext) {
     const cookieStore = await cookies();
     const token = cookieStore.get("auth-token")?.value;
     if (!token) return Response.json({ message: "Not authenticated" }, { status: 401 });
-    //@ts-ignore
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decoded.userId as string;
+    const decoded = verifyToken(token);
+    if (!decoded) return Response.json({ message: "Invalid token" }, { status: 401 });
+    const userId = decoded.userId;
 
     const conversation = await prisma.conversation.findFirst({
       where: { id, userId },
@@ -41,9 +41,9 @@ export async function POST(request: Request, context: RouteContext) {
     const cookieStore = await cookies();
     const token = cookieStore.get("auth-token")?.value;
     if (!token) return Response.json({ message: "Not authenticated" }, { status: 401 });
-    //@ts-ignore
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decoded.userId as string;
+    const decoded = verifyToken(token);
+    if (!decoded) return Response.json({ message: "Invalid token" }, { status: 401 });
+    const userId = decoded.userId;
 
     // Ensure the conversation belongs to user
     const convo = await prisma.conversation.findFirst({
@@ -77,9 +77,9 @@ export async function DELETE(_request: Request, context: RouteContext) {
     const cookieStore = await cookies();
     const token = cookieStore.get("auth-token")?.value;
     if (!token) return Response.json({ message: "Not authenticated" }, { status: 401 });
-    //@ts-ignore
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decoded.userId as string;
+    const decoded = verifyToken(token);
+    if (!decoded) return Response.json({ message: "Invalid token" }, { status: 401 });
+    const userId = decoded.userId;
 
     const convo = await prisma.conversation.findFirst({
       where: { id, userId },
@@ -103,9 +103,9 @@ export async function PATCH(request: Request, context: RouteContext) {
     const cookieStore = await cookies();
     const token = cookieStore.get("auth-token")?.value;
     if (!token) return Response.json({ message: "Not authenticated" }, { status: 401 });
-    //@ts-ignore
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decoded.userId as string;
+    const decoded = verifyToken(token);
+    if (!decoded) return Response.json({ message: "Invalid token" }, { status: 401 });
+    const userId = decoded.userId;
 
     const convo = await prisma.conversation.findFirst({
       where: { id, userId },

@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
+import { verifyToken } from "@/lib/auth/helpers";
 import prisma from "@/lib/prisma";
 
 export async function GET() {
@@ -7,9 +7,9 @@ export async function GET() {
     const cookieStore = await cookies();
     const token = cookieStore.get("auth-token")?.value;
     if (!token) return Response.json({ message: "Not authenticated" }, { status: 401 });
-    //@ts-ignore
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decoded.userId as string;
+    const decoded = verifyToken(token);
+    if (!decoded) return Response.json({ message: "Invalid token" }, { status: 401 });
+    const userId = decoded.userId;
 
     const conversations = await prisma.conversation.findMany({
       where: { userId },
@@ -38,9 +38,9 @@ export async function POST(request: Request) {
     const cookieStore = await cookies();
     const token = cookieStore.get("auth-token")?.value;
     if (!token) return Response.json({ message: "Not authenticated" }, { status: 401 });
-    //@ts-ignore
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decoded.userId as string;
+    const decoded = verifyToken(token);
+    if (!decoded) return Response.json({ message: "Invalid token" }, { status: 401 });
+    const userId = decoded.userId;
 
     const body = await request.json().catch(() => ({}));
     const { title, messages } = body || {};

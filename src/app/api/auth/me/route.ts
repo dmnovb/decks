@@ -1,5 +1,4 @@
-import { getUserById } from "@/lib/auth/helpers";
-import jwt from "jsonwebtoken";
+import { getUserById, verifyToken } from "@/lib/auth/helpers";
 import { cookies } from "next/headers";
 
 export async function GET() {
@@ -11,8 +10,10 @@ export async function GET() {
       return Response.json({ message: "Not authenticated" }, { status: 401 });
     }
 
-    //@ts-ignore
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return Response.json({ message: "Invalid token" }, { status: 401 });
+    }
     const user = await getUserById(decoded.userId);
 
     return Response.json({
@@ -21,6 +22,6 @@ export async function GET() {
       name: user!.name,
     });
   } catch (error) {
-    return Response.json({ message: "Invalid token" }, { status: 401 });
+    return Response.json({ message: "Not authenticated" }, { status: 401 });
   }
 }
