@@ -23,8 +23,33 @@ model User {
   password      String
   createdAt     DateTime       @default(now())
   decks         Deck[]         @relation("UserDecks")
+  folders       Folder[]       @relation("UserFolders")
   conversations Conversation[] @relation("UserConversations")
   studySessions StudySession[]
+  memory        UserMemory?
+}
+
+model UserMemory {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  content   String   @default("")
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Folder {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  tags        String[] @default([])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+  user        User     @relation("UserFolders", fields: [userId], references: [id])
+  parentId    String?
+  parent      Folder?  @relation("FolderNesting", fields: [parentId], references: [id])
+  children    Folder[] @relation("FolderNesting")
+  decks       Deck[]
 }
 
 model Deck {
@@ -32,10 +57,13 @@ model Deck {
   title         String
   description   String?
   category      String?
+  tags          String[]       @default([])
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   userId        String
   user          User           @relation("UserDecks", fields: [userId], references: [id])
+  folderId      String?
+  folder        Folder?        @relation(fields: [folderId], references: [id])
   flashcards    Flashcard[]
   studySessions StudySession[]
 }

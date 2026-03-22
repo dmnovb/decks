@@ -61,7 +61,10 @@ export function FlashcardsView() {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if user is typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
         return;
       }
 
@@ -132,7 +135,9 @@ export function FlashcardsView() {
   if (flashcards.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <p className="text-muted-foreground text-sm">No flashcards in this deck</p>
+        <p className="text-muted-foreground text-sm">
+          No flashcards in this deck
+        </p>
         <Button variant="outline" onClick={() => window.history.back()}>
           Go Back
         </Button>
@@ -145,18 +150,24 @@ export function FlashcardsView() {
     return (
       <div className="space-y-6">
         <div className="text-center space-y-4 py-12">
-          <h2 className="text-3xl font-bold">Session Complete! 🎉</h2>
+          <h2 className="text-3xl font-bold">Session Complete!</h2>
           <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto pt-8">
             <div className="p-4 bg-muted/30 rounded-lg">
-              <div className="text-2xl font-bold">{sessionState.completedCards}</div>
-              <div className="text-sm text-muted-foreground">Cards Reviewed</div>
+              <div className="text-2xl font-bold">
+                {sessionState.completedCards}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Cards Reviewed
+              </div>
             </div>
             <div className="p-4 bg-muted/30 rounded-lg">
               <div className="text-2xl font-bold">{Math.round(accuracy)}%</div>
               <div className="text-sm text-muted-foreground">Accuracy</div>
             </div>
             <div className="p-4 bg-muted/30 rounded-lg">
-              <div className="text-2xl font-bold">{formatTime(elapsedTime)}</div>
+              <div className="text-2xl font-bold">
+                {formatTime(elapsedTime)}
+              </div>
               <div className="text-sm text-muted-foreground">Time</div>
             </div>
           </div>
@@ -205,7 +216,9 @@ export function FlashcardsView() {
               {sessionState.currentStreak > 0 && (
                 <div className="flex items-center gap-1 text-sm">
                   <span>🔥</span>
-                  <span className="font-medium">{sessionState.currentStreak}</span>
+                  <span className="font-medium">
+                    {sessionState.currentStreak}
+                  </span>
                 </div>
               )}
             </div>
@@ -240,7 +253,9 @@ export function FlashcardsView() {
   return (
     <>
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <p className="text-muted-foreground text-sm">Ready to start studying?</p>
+        <p className="text-muted-foreground text-sm">
+          Ready to start studying?
+        </p>
         <Button onClick={() => setShowSetup(true)}>Configure Session</Button>
       </div>
 

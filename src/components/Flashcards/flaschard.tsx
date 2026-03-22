@@ -1,12 +1,10 @@
 "use client";
-import { Badge } from "../ui/badge";
-import { Flashcard, Flashcard as FlashCardType } from "@/generated/prisma";
+import { Flashcard as FlashCardType } from "@/generated/prisma";
 import { Separator } from "../ui/separator";
 import useDeleteCard from "@/hooks/use-delete-flashcard";
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetFooter,
   SheetHeader,
   SheetTitle,
@@ -14,40 +12,130 @@ import {
 } from "../ui/sheet";
 import { useState } from "react";
 import { Button } from "../ui/button";
-import { BarChart3, Calendar, Pause, Play, Save, Target, TrendingUp, X, Zap } from "lucide-react";
+import {
+  BarChart3,
+  Calendar,
+  Check,
+  Copy,
+  Pause,
+  Play,
+  Target,
+  TrendingUp,
+  Zap,
+} from "lucide-react";
 import { Label } from "../ui/label";
-import { Input } from "../ui/input";
 import DifficultyBadge from "../difficulty-badge";
+import { cn } from "@/lib/utils";
+
+// ── Copy button ────────────────────────────────────────────────────────────
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <button
+      onClick={copy}
+      title="Copy"
+      className={cn(
+        "flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-all duration-150",
+        copied
+          ? "text-success bg-success/10"
+          : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-background-2",
+      )}
+    >
+      {copied ? (
+        <>
+          <Check size={10} />
+          <span>Copied</span>
+        </>
+      ) : (
+        <>
+          <Copy size={10} />
+          <span>Copy</span>
+        </>
+      )}
+    </button>
+  );
+}
+
+// ── Stat tile ──────────────────────────────────────────────────────────────
+
+function StatTile({
+  icon: Icon,
+  label,
+  value,
+  sub,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: React.ReactNode;
+  sub?: string;
+}) {
+  return (
+    <div className="p-3 bg-background-1 border border-divider-1 rounded-md space-y-1.5">
+      <div className="flex items-center gap-1.5 text-muted-foreground">
+        <Icon size={11} strokeWidth={1.75} />
+        <span className="text-[10px] font-medium uppercase tracking-widest">{label}</span>
+      </div>
+      <div className="flex items-baseline gap-1">
+        <span className="text-xl font-semibold tracking-tight">{value}</span>
+        {sub && <span className="text-xs text-muted-foreground">{sub}</span>}
+      </div>
+    </div>
+  );
+}
+
+// ── FlashCard tile ─────────────────────────────────────────────────────────
 
 export function FlashCard({ card }: { card: FlashCardType }) {
-  const { handleDelete } = useDeleteCard();
-
   return (
     <FlashCardSheet card={card}>
-      <div className="hover:cursor-pointer hover:border-divider-2 transition-all w-full max-w-sm p-4 flex flex-col gap-4 bg-background-1 border border-divider-1 rounded-sm">
-        <div className="flex items-center gap-2">
+      <div className="hover:cursor-pointer group transition-all w-full max-w-sm flex flex-col bg-background-1 border border-divider-1 hover:border-divider-2 rounded-sm overflow-hidden">
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-4 pt-3 pb-2">
           <DifficultyBadge difficulty={card.difficulty} />
+          <span className="text-[10px] text-muted-foreground/50 tabular-nums">
+            {card.totalReviews}×
+          </span>
         </div>
 
         <Separator />
 
-        <div className="p-16 text-center flex flex-col gap-4">
-          <span className="text-sm text-muted-foreground">Front</span>
-
-          <span className="text-foreground">{card.front}</span>
+        {/* Front text */}
+        <div className="flex-1 flex items-center justify-center px-6 py-10 text-center">
+          <span className="text-sm text-foreground leading-relaxed">{card.front}</span>
         </div>
 
         <Separator />
 
-        <div className="text-xs text-muted-foreground flex justify-between">
-          <div>due {new Date(card.nextReview!).toDateString()}</div>
+        {/* Footer */}
+        <div className="px-4 py-2.5 flex items-center justify-between">
+          <span className="text-[10px] text-muted-foreground/50">
+            {card.nextReview ? `due ${new Date(card.nextReview).toLocaleDateString()}` : "not studied"}
+          </span>
+          <span className="text-[10px] text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
+            view →
+          </span>
         </div>
       </div>
     </FlashCardSheet>
   );
 }
 
-const FlashCardSheet = ({ card, children }: { card: FlashCardType; children: React.ReactNode }) => {
+// ── FlashCard sheet ────────────────────────────────────────────────────────
+
+const FlashCardSheet = ({
+  card,
+  children,
+}: {
+  card: FlashCardType;
+  children: React.ReactNode;
+}) => {
+  const { handleDelete } = useDeleteCard();
   const [isEditing, setIsEditing] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [editedCard, setEditedCard] = useState<FlashCardType | null>(null);
@@ -56,30 +144,12 @@ const FlashCardSheet = ({ card, children }: { card: FlashCardType; children: Rea
 
   const currentCard = editedCard || card;
   const accuracyRate =
-    card.totalReviews > 0 ? Math.round((card.correctReviews / card.totalReviews) * 100) : 0;
-
-  console.log(card);
-
-  const getDifficultyLabel = (difficulty: number) => {
-    if (difficulty === 0) return "Blackout";
-    if (difficulty <= 2) return "Hard";
-    if (difficulty === 3) return "Good";
-    if (difficulty === 4) return "Easy";
-    return "Perfect";
-  };
-
-  const getDifficultyColor = (difficulty: number) => {
-    if (difficulty === 0)
-      return "bg-destructive/20 text-destructive-foreground border-destructive/40";
-    if (difficulty <= 2) return "bg-accent/20 text-accent-foreground border-accent/40";
-    if (difficulty === 3) return "bg-chart-2/20 text-chart-2 border-chart-2/40";
-    return "bg-chart-2/30 text-chart-2 border-chart-2/50";
-  };
+    card.totalReviews > 0
+      ? Math.round((card.correctReviews / card.totalReviews) * 100)
+      : 0;
 
   const handleSave = () => {
-    if (editedCard) {
-      // onSave(editedCard)
-    }
+    // onSave(editedCard) — wired to API when edit endpoint is ready
     setIsEditing(false);
     setEditedCard(null);
   };
@@ -98,142 +168,170 @@ const FlashCardSheet = ({ card, children }: { card: FlashCardType; children: Rea
     <Sheet>
       <SheetTrigger asChild>{children}</SheetTrigger>
 
-      <SheetContent className="w-full flex flex-col sm:max-w-xl overflow-y-auto border-none h-full">
-        <SheetHeader>
-          <SheetTitle className="text-xl">Card Details</SheetTitle>
+      <SheetContent className="w-full flex flex-col sm:max-w-lg overflow-hidden border-l border-divider-1 p-0 h-full">
+        {/* Header */}
+        <SheetHeader className="px-6 pt-6 pb-5 border-b border-divider-1 shrink-0">
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1.5">
+            Flashcard
+          </p>
+          <SheetTitle className="text-base font-semibold leading-snug line-clamp-2 text-balance pr-6">
+            {card.front}
+          </SheetTitle>
+          <div className="flex items-center gap-2.5 mt-2">
+            <DifficultyBadge difficulty={card.difficulty} />
+            {card.totalReviews > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {accuracyRate}% accuracy · {card.totalReviews} reviews
+              </span>
+            )}
+          </div>
         </SheetHeader>
 
-        <div className="flex-1 space-y-6 p-6 overflow-y-auto">
-          {/* Content Section */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="front" className="text-sm text-muted-foreground">
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+
+          {/* Front */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">
                 Front
               </Label>
-              {isEditing ? (
-                <Input
-                  id="front"
-                  // value={currentCard.front}
-                  // onChange={(e) => setEditedCard({ ...currentCard, front: e.target.value })}
-                  className="min-h-[100px] bg-input border-border resize-none"
-                />
-              ) : (
-                <div className="p-4 bg-background-1 border border-divider-1 rounded-lg">
-                  <p className="text-lg text-balance">{currentCard.front}</p>
-                </div>
-              )}
+              {!isEditing && <CopyButton text={currentCard.front} />}
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="back" className="text-sm text-muted-foreground">
-                Back
-              </Label>
-              {isEditing ? (
-                <Input
-                  id="back"
-                  // value={currentCard.back}
-                  // onChange={(e) => setEditedCard({ ...currentCard, back: e.target.value })}
-                  className="min-h-[100px] bg-input border-border resize-none"
-                />
-              ) : (
-                <div className="p-4 bg-background-1 border border-divider-1 rounded-lg">
-                  <p className="text-lg text-balance">{currentCard.back}</p>
-                </div>
-              )}
-            </div>
-
-            {(currentCard.notes || isEditing) && (
-              <div className="space-y-2">
-                <Label htmlFor="notes" className="text-sm text-muted-foreground">
-                  Notes
-                </Label>
-                {isEditing ? (
-                  <Input
-                    id="notes"
-                    // value={currentCard.notes || ""}
-                    // onChange={(e) => setEditedCard({ ...currentCard, notes: e.target.value })}
-                    placeholder="Add notes to help you remember..."
-                    className="min-h-[80px] bg-input border-border resize-none"
-                  />
-                ) : (
-                  <div className="p-4 bg-background-1 border border-divider-1 rounded-lg">
-                    <p className="text-sm text-muted-foreground text-pretty">{currentCard.notes}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {currentCard.audioUrl && (
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">Audio</Label>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-                  className="w-full"
-                >
-                  {isPlayingAudio ? (
-                    <Pause className="h-4 w-4 mr-2" />
-                  ) : (
-                    <Play className="h-4 w-4 mr-2" />
-                  )}
-                  {isPlayingAudio ? "Pause" : "Play"} Audio
-                </Button>
+            {isEditing ? (
+              <textarea
+                value={editedCard?.front ?? ""}
+                onChange={(e) =>
+                  setEditedCard((prev) => prev ? { ...prev, front: e.target.value } : prev)
+                }
+                rows={3}
+                className="w-full px-3 py-2 bg-background-1 border border-divider-1 rounded-md resize-none text-sm outline-none focus:border-divider-2 transition-colors"
+              />
+            ) : (
+              <div className="p-4 bg-background-1 border border-divider-1 rounded-md">
+                <p className="text-sm leading-relaxed">{currentCard.front}</p>
               </div>
             )}
           </div>
 
+          {/* Back */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">
+                Back
+              </Label>
+              {!isEditing && <CopyButton text={currentCard.back} />}
+            </div>
+            {isEditing ? (
+              <textarea
+                value={editedCard?.back ?? ""}
+                onChange={(e) =>
+                  setEditedCard((prev) => prev ? { ...prev, back: e.target.value } : prev)
+                }
+                rows={3}
+                className="w-full px-3 py-2 bg-background-1 border border-divider-1 rounded-md resize-none text-sm outline-none focus:border-divider-2 transition-colors"
+              />
+            ) : (
+              <div className="p-4 bg-background-1 border border-divider-1 rounded-md">
+                <p className="text-sm leading-relaxed">{currentCard.back}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Notes */}
+          {(currentCard.notes || isEditing) && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">
+                  Notes
+                </Label>
+                {!isEditing && currentCard.notes && (
+                  <CopyButton text={currentCard.notes} />
+                )}
+              </div>
+              {isEditing ? (
+                <textarea
+                  value={editedCard?.notes ?? ""}
+                  onChange={(e) =>
+                    setEditedCard((prev) => prev ? { ...prev, notes: e.target.value } : prev)
+                  }
+                  placeholder="Add notes to help you remember…"
+                  rows={2}
+                  className="w-full px-3 py-2 bg-background-1 border border-divider-1 rounded-md resize-none text-sm outline-none focus:border-divider-2 transition-colors"
+                />
+              ) : (
+                <div className="p-4 bg-background-1 border border-divider-1 rounded-md">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {currentCard.notes}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Audio */}
+          {currentCard.audioUrl && (
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">
+                Audio
+              </Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsPlayingAudio(!isPlayingAudio)}
+                className="w-full gap-2"
+              >
+                {isPlayingAudio ? <Pause size={13} /> : <Play size={13} />}
+                {isPlayingAudio ? "Pause" : "Play"} Audio
+              </Button>
+            </div>
+          )}
+
           <Separator />
 
-          {/* Statistics Section */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground">Learning Statistics</h3>
+          {/* Stats */}
+          <div className="space-y-3">
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">
+              Learning Statistics
+            </p>
 
-            {/* Current Status */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-4 bg-background-1 border border-divider-1 rounded-lg space-y-2">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Target className="h-4 w-4" />
-                  <span className="text-xs">Difficulty</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className={getDifficultyColor(currentCard.difficulty)}>
-                    {getDifficultyLabel(currentCard.difficulty)}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    ({currentCard.difficulty}/5)
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-4 bg-background-1 border border-divider-1 rounded-lg space-y-2">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Zap className="h-4 w-4" />
-                  <span className="text-xs">Streak</span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-semibold">{currentCard.streak}</span>
-                  <span className="text-xs text-muted-foreground">correct</span>
-                </div>
-              </div>
+            <div className="grid grid-cols-3 gap-2">
+              <StatTile icon={BarChart3} label="Accuracy" value={`${accuracyRate}%`} />
+              <StatTile icon={Zap} label="Streak" value={currentCard.streak} sub="correct" />
+              <StatTile icon={Target} label="Reviews" value={currentCard.totalReviews} />
             </div>
 
-            {/* Review Schedule */}
-            <div className="p-4 bg-background-1 border border-divider-1 rounded-lg space-y-3">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Calendar className="h-4 w-4" />
-                <span className="text-xs font-medium">Review Schedule</span>
+            {/* Accuracy bar */}
+            {card.totalReviews > 0 && (
+              <div className="space-y-1.5 px-0.5">
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>{card.correctReviews} correct</span>
+                  <span>{card.totalReviews - card.correctReviews} missed</span>
+                </div>
+                <div className="h-1 bg-background-3 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-success rounded-full transition-all duration-500"
+                    style={{ width: `${accuracyRate}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Schedule */}
+            <div className="p-3.5 bg-background-1 border border-divider-1 rounded-md space-y-3">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <Calendar size={11} strokeWidth={1.75} />
+                <span className="text-[10px] font-medium uppercase tracking-widest">Schedule</span>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Interval</p>
-                  <p className="text-sm font-medium">
+                <div>
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Interval</p>
+                  <p className="text-sm font-medium tabular-nums">
                     {currentCard.interval} {currentCard.interval === 1 ? "day" : "days"}
                   </p>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Next Review</p>
+                <div>
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Next Review</p>
                   <p className="text-sm font-medium">
                     {currentCard.nextReview
                       ? new Date(currentCard.nextReview).toLocaleDateString()
@@ -242,89 +340,56 @@ const FlashCardSheet = ({ card, children }: { card: FlashCardType; children: Rea
                 </div>
               </div>
               {currentCard.lastReviewed && (
-                <div className="pt-2 border-t border-border">
-                  <p className="text-xs text-muted-foreground">
-                    Last reviewed {new Date(currentCard.lastReviewed).toLocaleDateString()}
-                  </p>
-                </div>
+                <p className="text-[10px] text-muted-foreground pt-2 border-t border-divider-1">
+                  Last reviewed {new Date(currentCard.lastReviewed).toLocaleDateString()}
+                </p>
               )}
             </div>
 
-            {/* Performance Metrics */}
-            <div className="p-4 bg-background-1 border border-divider-1 rounded-lg space-y-3">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <BarChart3 className="h-4 w-4" />
-                <span className="text-xs font-medium">Performance</span>
-              </div>
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Accuracy</span>
-                    <span className="font-semibold">{accuracyRate}%</span>
-                  </div>
-                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-chart-2 transition-all"
-                      style={{ width: `${accuracyRate}%` }}
-                    />
-                  </div>
+            {/* SM-2 */}
+            <div className="p-3.5 bg-background-1 border border-divider-1 rounded-md">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <TrendingUp size={11} strokeWidth={1.75} />
+                  <span className="text-[10px] font-medium uppercase tracking-widest">Ease Factor</span>
                 </div>
-                <div className="grid grid-cols-3 gap-3 pt-2">
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Total</p>
-                    <p className="text-lg font-semibold">{currentCard.totalReviews}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Correct</p>
-                    <p className="text-lg font-semibold text-chart-2">
-                      {currentCard.correctReviews}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Repetitions</p>
-                    <p className="text-lg font-semibold">{currentCard.repetitions}</p>
-                  </div>
-                </div>
+                <span className="text-sm font-mono font-medium">
+                  {currentCard.easeFactor.toFixed(2)}
+                </span>
               </div>
-            </div>
-
-            {/* Advanced Metrics */}
-            <div className="p-4 bg-background-1 border border-divider-1 rounded-lg space-y-3">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <TrendingUp className="h-4 w-4" />
-                <span className="text-xs font-medium">SM-2 Algorithm</span>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Ease Factor</span>
-                  <span className="text-sm font-mono font-medium">
-                    {currentCard.easeFactor.toFixed(2)}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  The ease factor determines how quickly the interval increases. Higher values mean
-                  easier recall.
-                </p>
-              </div>
+              <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
+                Higher ease factor = interval grows faster = easier recall.
+              </p>
             </div>
           </div>
         </div>
 
-        <SheetFooter className="px-6 py-4 border-t mt-auto">
-          <div className="flex w-full gap-3">
+        {/* Footer */}
+        <SheetFooter className="px-6 py-4 border-t border-divider-1 shrink-0">
+          <div className="flex w-full gap-2">
             {isEditing ? (
-              <Button variant="secondary" className="flex-1 font-bold" onClick={handleCancel}>
-                CANCEL
-              </Button>
+              <>
+                <Button variant="ghost" className="flex-1" onClick={handleCancel}>
+                  Cancel
+                </Button>
+                <Button className="flex-1" onClick={handleSave}>
+                  Save changes
+                </Button>
+              </>
             ) : (
-              <Button variant="secondary" className="flex-1 font-bold" onClick={startEditing}>
-                EDIT
-              </Button>
+              <>
+                <Button variant="outline" className="flex-1" onClick={startEditing}>
+                  Edit
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={() => handleDelete(card.id, card.deckId)}
+                >
+                  Delete
+                </Button>
+              </>
             )}
-
-            <Button variant="destructive" className="flex-1 font-bold">
-              DELETE
-            </Button>
           </div>
         </SheetFooter>
       </SheetContent>

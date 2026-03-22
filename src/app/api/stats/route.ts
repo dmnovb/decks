@@ -20,17 +20,17 @@ export async function GET(request: NextRequest) {
     const ninetyDaysAgo = new Date(now);
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-    // Fetch all decks with flashcards
-    const decks = await prisma.deck.findMany({
-      where: { userId },
-      include: { flashcards: true },
-    });
-
-    // Fetch recent study sessions
-    const sessions = await prisma.studySession.findMany({
-      where: { userId, startedAt: { gte: ninetyDaysAgo } },
-      orderBy: { startedAt: "asc" },
-    });
+    // Fetch decks and sessions in parallel — they're independent
+    const [decks, sessions] = await Promise.all([
+      prisma.deck.findMany({
+        where: { userId },
+        include: { flashcards: true },
+      }),
+      prisma.studySession.findMany({
+        where: { userId, startedAt: { gte: ninetyDaysAgo } },
+        orderBy: { startedAt: "asc" },
+      }),
+    ]);
 
     // Aggregate flashcard stats
     const allCards = decks.flatMap((d) => d.flashcards);

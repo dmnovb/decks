@@ -23,6 +23,8 @@ type Action =
   | { type: "SET"; decks: Deck[] }
   | { type: "DELETE"; id: string }
   | { type: "SELECT"; deckId: string }
+  | { type: "MOVE"; id: string; folderId: string | null }
+  | { type: "UPDATE"; deck: Deck }
   | { type: "ADD_FLASHCARD"; deckId: string; flashcard: Flashcard }
   | { type: "DELETE_FLASHCARD"; deckId: string; flashcardId: Flashcard["id"] }
   | { type: "UPDATE_FLASHCARD"; deckId: string; flashcard: Flashcard };
@@ -75,6 +77,20 @@ const reducer = (state: State, action: Action): State => {
         ...state,
         decks: filteredDecks,
         selectedDeck: newSelectedDeck,
+      };
+
+    case "MOVE":
+      return {
+        ...state,
+        decks: state.decks.map((deck) =>
+          deck.id === action.id ? { ...deck, folderId: action.folderId } : deck,
+        ),
+      };
+
+    case "UPDATE":
+      return {
+        ...state,
+        decks: state.decks.map((d) => (d.id === action.deck.id ? { ...d, ...action.deck } : d)),
       };
 
     case "ADD_FLASHCARD":

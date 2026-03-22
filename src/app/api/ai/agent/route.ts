@@ -9,7 +9,7 @@ const tools: Anthropic.Tool[] = [
   {
     type: "custom" as const,
     name: "create_deck",
-    description: "Creates a new flashcard deck for the user",
+    description: "Creates a new flashcard deck for the user, optionally inside a folder.",
     input_schema: {
       type: "object",
       properties: {
@@ -21,6 +21,10 @@ const tools: Anthropic.Tool[] = [
         category: {
           type: "string",
           description: 'The category or subject (e.g., "Spanish", "Japanese", "Korean")',
+        },
+        folderId: {
+          type: "string",
+          description: "The ID of a folder to place the deck in (optional)",
         },
       },
       required: ["title"],
@@ -63,6 +67,7 @@ const tools: Anthropic.Tool[] = [
         title: { type: "string", description: "The title of the deck" },
         description: { type: "string", description: "A brief description of the deck" },
         category: { type: "string", description: "The category or subject" },
+        folderId: { type: "string", description: "The ID of a folder to place the deck in (optional)" },
         flashcards: {
           type: "array",
           description: "Array of flashcards to create",
@@ -100,13 +105,55 @@ const tools: Anthropic.Tool[] = [
       required: ["deckId"],
     },
   },
+  {
+    type: "custom" as const,
+    name: "create_folder",
+    description:
+      "Creates a new folder to organize decks. Use this when user wants to group decks together.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "The name of the folder" },
+        description: { type: "string", description: "A brief description of the folder" },
+        parentId: {
+          type: "string",
+          description: "The ID of a parent folder to nest this folder inside (optional)",
+        },
+      },
+      required: ["title"],
+    },
+  },
+  {
+    type: "custom" as const,
+    name: "list_user_folders",
+    description:
+      "Lists all folders belonging to the user. Use this to see existing folders before creating decks or folders inside them.",
+    input_schema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    type: "custom" as const,
+    name: "move_deck_to_folder",
+    description:
+      "Moves a deck into a folder, or back to the top level if folderId is null.",
+    input_schema: {
+      type: "object",
+      properties: {
+        deckId: { type: "string", description: "The ID of the deck to move" },
+        folderId: {
+          type: ["string", "null"],
+          description: "The ID of the folder to move the deck into, or null for top level",
+        },
+      },
+      required: ["deckId", "folderId"],
+    },
+  },
 ];
 
 async function executeFunctions(functionName: string, args: any, userId: string) {
   switch (functionName) {
     case "create_deck": {
       const deck = await prisma.deck.create({
-        data: { title: args.title, description: args.description, category: args.category, userId },
+        data: { title: args.title, description: args.description, category: args.category, folderId: args.folderId, userId },
       });
       return {
         success: true,
@@ -132,6 +179,7 @@ async function executeFunctions(functionName: string, args: any, userId: string)
           title: args.title,
           description: args.description,
           category: args.category,
+          folderId: args.folderId,
           userId,
           flashcards: { create: args.flashcards },
         },
@@ -176,6 +224,57 @@ async function executeFunctions(functionName: string, args: any, userId: string)
           notes: f.notes,
         })),
         message: `Found ${flashcards.length} flashcard${flashcards.length !== 1 ? "s" : ""} in deck "${deck.title}"`,
+      };
+    }
+    case "create_folder": {
+      const folder = await prisma.folder.create({
+        data: {
+          title: args.title,
+          description: args.description,
+          parentId: args.parentId,
+          userId,
+        },
+      });
+      return {
+        success: true,
+        folderId: folder.id,
+        message: `Created folder "${folder.title}" with ID ${folder.id}`,
+      };
+    }
+    case "list_user_folders": {
+      const folders = await prisma.folder.findMany({
+        where: { userId },
+        include: { _count: { select: { decks: true, children: true } } },
+        orderBy: { createdAt: "desc" },
+      });
+      return {
+        success: true,
+        folders: folders.map((f: any) => ({
+          id: f.id,
+          title: f.title,
+          description: f.description,
+          parentId: f.parentId,
+          deckCount: f._count.decks,
+          subfolderCount: f._count.children,
+        })),
+      };
+    }
+    case "move_deck_to_folder": {
+      const ownedDeck = await prisma.deck.findFirst({ where: { id: args.deckId, userId } });
+      if (!ownedDeck) return { success: false, error: "Deck not found or access denied" };
+      if (args.folderId) {
+        const folder = await prisma.folder.findFirst({ where: { id: args.folderId, userId } });
+        if (!folder) return { success: false, error: "Folder not found or access denied" };
+      }
+      await prisma.deck.update({
+        where: { id: args.deckId },
+        data: { folderId: args.folderId ?? null },
+      });
+      return {
+        success: true,
+        message: args.folderId
+          ? `Moved deck "${ownedDeck.title}" into folder`
+          : `Moved deck "${ownedDeck.title}" to top level`,
       };
     }
     default:
