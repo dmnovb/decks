@@ -5,6 +5,7 @@ import { AuthProvider } from "@/providers";
 import { AuthGuard } from "@/components/auth-guard";
 import { ThemeDock } from "@/components/ui/theme-dock";
 import { Toaster } from "@/components/ui/sonner";
+import { Analytics } from "@vercel/analytics/next";
 
 import "./globals.css";
 
@@ -38,6 +39,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} antialiased overflow-hidden`}
       >
+        <Analytics />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
