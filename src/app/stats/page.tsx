@@ -21,7 +21,12 @@ interface StatsData {
   accuracy: number;
   bestStreak: number;
   dueNow: number;
-  difficultyBuckets: { new: number; hard: number; learning: number; good: number };
+  difficultyBuckets: {
+    new: number;
+    hard: number;
+    learning: number;
+    good: number;
+  };
   deckStats: Array<{
     id: string;
     title: string;
@@ -63,8 +68,10 @@ export default function StatsPage() {
           const s = data.sessionHistory;
           if (s.length < 4) return 0;
           const half = Math.floor(s.length / 2);
-          const recent = s.slice(-half).reduce((a, b) => a + b.accuracy, 0) / half;
-          const earlier = s.slice(0, half).reduce((a, b) => a + b.accuracy, 0) / half;
+          const recent =
+            s.slice(-half).reduce((a, b) => a + b.accuracy, 0) / half;
+          const earlier =
+            s.slice(0, half).reduce((a, b) => a + b.accuracy, 0) / half;
           return Math.round(recent - earlier);
         })(),
       }
@@ -75,7 +82,9 @@ export default function StatsPage() {
       <div className="flex items-center justify-between px-8 py-5 border-b border-border shrink-0">
         <div>
           <h1 className="text-sm font-semibold text-foreground">Statistics</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Your learning at a glance</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Your learning at a glance
+          </p>
         </div>
       </div>
 
@@ -131,9 +140,9 @@ export default function StatsPage() {
             {/* ── Charts row ─────────────────────────────────────────── */}
             <motion.div variants={item} className="grid grid-cols-3 gap-3">
               {/* Accuracy chart — 2 cols */}
-              <div className="col-span-2">
+              {/* <div className="col-span-2">
                 <AccuracyChart sessions={data.sessionHistory} />
-              </div>
+              </div> */}
 
               {/* Right stack — 1 col */}
               <div className="flex flex-col gap-3">
@@ -215,7 +224,11 @@ function StatTile({
 
 // ── Accuracy chart ─────────────────────────────────────────────────────────────
 
-function AccuracyChart({ sessions }: { sessions: StatsData["sessionHistory"] }) {
+function AccuracyChart({
+  sessions,
+}: {
+  sessions: StatsData["sessionHistory"];
+}) {
   const W = 500;
   const H = 140;
   const PAD_L = 28;
@@ -327,7 +340,9 @@ function AccuracyChart({ sessions }: { sessions: StatsData["sessionHistory"] }) 
             stroke="var(--background-2)"
             strokeWidth="1.5"
           >
-            <title>{p.accuracy}% — {p.cardCount} cards</title>
+            <title>
+              {p.accuracy}% — {p.cardCount} cards
+            </title>
           </circle>
         ))}
       </svg>
@@ -388,8 +403,12 @@ function DifficultyChart({
                 className="w-1.5 h-1.5 rounded-full shrink-0"
                 style={{ backgroundColor: color }}
               />
-              <span className="text-[11px] text-muted-foreground flex-1">{label}</span>
-              <span className="font-mono text-[11px] text-muted-foreground">{count}</span>
+              <span className="text-[11px] text-muted-foreground flex-1">
+                {label}
+              </span>
+              <span className="font-mono text-[11px] text-muted-foreground">
+                {count}
+              </span>
               <span className="font-mono text-[10px] text-muted-foreground w-8 text-right tabular-nums">
                 {pct}%
               </span>
@@ -459,7 +478,8 @@ function Heatmap({ data }: { data: StatsData["heatmap"] }) {
     const firstDay = new Date(week[0].date);
     if (
       wi === 0 ||
-      new Date(weeks[wi - 1]?.[0]?.date ?? "").getMonth() !== firstDay.getMonth()
+      new Date(weeks[wi - 1]?.[0]?.date ?? "").getMonth() !==
+        firstDay.getMonth()
     ) {
       monthLabels.push({
         weekIdx: wi,
@@ -577,16 +597,18 @@ function DeckTable({ decks }: { decks: StatsData["deckStats"] }) {
       <table className="w-full text-xs">
         <thead>
           <tr className="border-b border-border">
-            {["Name", "Cards", "Accuracy", "Avg interval", "Due"].map((h, i) => (
-              <th
-                key={h}
-                className={`px-4 py-2 text-[10px] font-medium tracking-widest uppercase text-muted-foreground ${
-                  i === 0 ? "text-left" : "text-right"
-                }`}
-              >
-                {h}
-              </th>
-            ))}
+            {["Name", "Cards", "Accuracy", "Avg interval", "Due"].map(
+              (h, i) => (
+                <th
+                  key={h}
+                  className={`px-4 py-2 text-[10px] font-medium tracking-widest uppercase text-muted-foreground ${
+                    i === 0 ? "text-left" : "text-right"
+                  }`}
+                >
+                  {h}
+                </th>
+              ),
+            )}
           </tr>
         </thead>
         <tbody>

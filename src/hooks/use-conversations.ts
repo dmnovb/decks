@@ -83,7 +83,8 @@ export function useConversations() {
           method: "DELETE",
           credentials: "include",
         });
-        if (!res.ok) throw new Error("Failed to delete conversation");
+        // 404 is fine — a previous rapid delete already removed it
+        if (!res.ok && res.status !== 404) throw new Error("Failed to delete conversation");
         return current?.filter((c) => c.id !== id) ?? [];
       },
       {
