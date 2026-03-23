@@ -243,7 +243,7 @@ const Chat = () => {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-8 py-5 border-b border-border shrink-0">
+      <div className="flex items-center justify-between px-4 py-4 sm:px-8 sm:py-5 border-b border-border shrink-0">
         <div>
           <h1 className="text-sm font-semibold text-foreground">Ace</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -306,7 +306,7 @@ const Chat = () => {
 
         <div
           ref={scrollContainerRef}
-          className="h-full overflow-y-auto px-8 py-6 flex flex-col gap-4 transition-opacity duration-300"
+          className="h-full overflow-y-auto px-4 py-4 sm:px-8 sm:py-6 flex flex-col gap-4 transition-opacity duration-300"
           style={{ opacity: isRestoring ? 0 : 1 }}
         >
           {messages.map((message) => {
@@ -376,7 +376,7 @@ const Chat = () => {
           e.preventDefault();
           handleSend();
         }}
-        className="px-8 py-4 border-t border-border shrink-0"
+        className="px-4 py-3 sm:px-8 sm:py-4 border-t border-border shrink-0"
       >
         <div className="flex items-end gap-2 bg-background-2 border border-divider-1 rounded-sm px-3 py-2 focus-within:border-divider-2 transition-colors">
           <textarea

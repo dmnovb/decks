@@ -79,7 +79,7 @@ export default function StatsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-8 py-5 border-b border-border shrink-0">
+      <div className="flex items-center justify-between px-4 py-4 sm:px-8 sm:py-5 border-b border-border shrink-0">
         <div>
           <h1 className="text-sm font-semibold text-foreground">Statistics</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -88,7 +88,7 @@ export default function StatsPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-5">
+      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
         {isLoading || !data || !derived ? (
           <StatsSkeleton />
         ) : (
@@ -101,7 +101,7 @@ export default function StatsPage() {
             {/* ── Hero tiles ─────────────────────────────────────────── */}
             <motion.div
               variants={item}
-              className="grid grid-cols-3 lg:grid-cols-6 gap-3"
+              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"
             >
               <StatTile
                 value={data.totalCards}
@@ -138,7 +138,7 @@ export default function StatsPage() {
             </motion.div>
 
             {/* ── Charts row ─────────────────────────────────────────── */}
-            <motion.div variants={item} className="grid grid-cols-3 gap-3">
+            <motion.div variants={item} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* Accuracy chart — 2 cols */}
               {/* <div className="col-span-2">
                 <AccuracyChart sessions={data.sessionHistory} />
@@ -586,6 +586,7 @@ function Heatmap({ data }: { data: StatsData["heatmap"] }) {
 function DeckTable({ decks }: { decks: StatsData["deckStats"] }) {
   return (
     <div className="rounded-lg bg-background-2 border border-border overflow-hidden">
+      <div className="overflow-x-auto">
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <span className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">
           Deck performance
@@ -654,6 +655,7 @@ function DeckTable({ decks }: { decks: StatsData["deckStats"] }) {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
@@ -663,12 +665,12 @@ function DeckTable({ decks }: { decks: StatsData["deckStats"] }) {
 function StatsSkeleton() {
   return (
     <div className="flex flex-col gap-4 animate-pulse">
-      <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[1, 2, 3, 4, 5, 6].map((i) => (
           <div key={i} className="h-20 rounded-lg bg-background-2" />
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="col-span-2 h-56 rounded-lg bg-background-2" />
         <div className="flex flex-col gap-3">
           <div className="flex-1 rounded-lg bg-background-2" />

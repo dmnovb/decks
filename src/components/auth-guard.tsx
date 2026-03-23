@@ -7,6 +7,7 @@ import { DecksProvider } from "@/providers";
 import { FoldersProvider } from "@/providers/folders-provider";
 import { ChatStateProvider } from "@/providers/chat-state-provider";
 import { NavPanel } from "@/layout/nav-panel";
+import { MobileTabBar } from "@/layout/mobile-tab-bar";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -47,9 +48,24 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
         <FoldersProvider>
           <ChatStateProvider>
             <div className="flex h-screen w-screen overflow-hidden bg-background">
-              <NavPanel />
-              <main className="flex-1 flex flex-col overflow-y-auto">{children}</main>
+              {/* Desktop sidebar — hidden on mobile */}
+              <div className="hidden md:flex">
+                <NavPanel />
+              </div>
+
+              {/* Main content — single render, padding clears the mobile tab bar */}
+              <main className="flex-1 flex flex-col overflow-y-auto">
+                {children}
+                {/* Spacer that pushes content above the fixed tab bar on mobile only */}
+                <div
+                  className="shrink-0 md:hidden"
+                  style={{ height: "calc(60px + env(safe-area-inset-bottom, 0px))" }}
+                />
+              </main>
             </div>
+
+            {/* Mobile tab bar — CSS hidden on desktop */}
+            <MobileTabBar />
           </ChatStateProvider>
         </FoldersProvider>
       </DecksProvider>

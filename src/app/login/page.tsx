@@ -49,13 +49,13 @@ const Login = () => {
         />
       </div>
 
-      <div className="shadow-md p-4 bg-background-1 rounded-sm border-divider-0 border">
+      <div className="shadow-md p-4 bg-background-1 rounded-sm border-divider-0 border w-full max-w-[400px] mx-4">
         <div className="flex justify-center pb-8 items-center gap-2">
           <Layers className="text-[var(--primary)]" />
           <span className="text-xl font-extrabold select-none">ALCOVE</span>
         </div>
         <Tabs defaultValue="account" className="flex flex-col gap-8">
-          <TabsList className="w-[350px] bg-background-2">
+          <TabsList className="w-full bg-background-2">
             <TabsTrigger className="" value="account">
               Log in
             </TabsTrigger>
