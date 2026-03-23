@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import useCreateDeck from "@/hooks/use-create-deck";
 import useCreateFolder from "@/hooks/use-create-folder";
-import { ChevronDown, FolderPlus, BookOpen } from "lucide-react";
+import { ChevronDown, FolderPlus, BookText } from "lucide-react";
 import React, { useState } from "react";
 
 type DialogType = "deck" | "folder" | null;
@@ -65,7 +65,7 @@ const CreateNew = () => {
             onSelect={() => setActiveDialog("deck")}
             className="gap-2.5 cursor-pointer"
           >
-            <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
+            <BookText className="h-3.5 w-3.5 text-muted-foreground" />
             <div>
               <div className="text-[13px] font-medium">Deck</div>
               <div className="text-[11px] text-muted-foreground">Flashcard set</div>
