@@ -21,6 +21,8 @@ import { Badge } from "../ui/badge";
 import { LayoutGrid, List, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@radix-ui/react-separator";
+import { Drawer } from "vaul";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type FlashcardForm = Omit<
   Flashcard,
@@ -44,6 +46,52 @@ interface TitleProps {
   onViewModeChange: (v: ViewMode) => void;
 }
 
+const emptyForm: Record<keyof FlashcardForm, string | null> = {
+  back: "",
+  front: "",
+  notes: null,
+  difficulty: null,
+  interval: null,
+  repetitions: null,
+  easeFactor: null,
+};
+
+// ── Shared form fields ─────────────────────────────────────────────────────
+
+function CardFormFields({
+  values,
+  onChange,
+}: {
+  values: Record<keyof FlashcardForm, string | null>;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-2">
+        <Label>Front</Label>
+        <Input name="front" onChange={onChange} value={values.front!} placeholder="Question…" />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label>Back</Label>
+        <Input name="back" onChange={onChange} value={values.back!} placeholder="Answer…" />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label>
+          Notes <span className="text-muted-foreground font-normal">(optional)</span>
+        </Label>
+        <Input
+          name="notes"
+          onChange={onChange}
+          placeholder="Any extra context…"
+          {...(values.notes ? { value: values.notes } : {})}
+        />
+      </div>
+    </>
+  );
+}
+
+// ── Title ──────────────────────────────────────────────────────────────────
+
 export function Title({
   amount,
   title,
@@ -54,16 +102,9 @@ export function Title({
   onViewModeChange,
 }: TitleProps) {
   const { handleCreate, isLoading } = useCreateFlashcard();
+  const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
-  const [values, setValues] = useState<Record<keyof FlashcardForm, string | null>>({
-    back: "",
-    front: "",
-    notes: null,
-    difficulty: null,
-    interval: null,
-    repetitions: null,
-    easeFactor: null,
-  });
+  const [values, setValues] = useState<Record<keyof FlashcardForm, string | null>>(emptyForm);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setValues({ ...values, [e.target.name]: e.target.value });
@@ -73,15 +114,7 @@ export function Title({
     e.preventDefault();
     await handleCreate({ ...values, deckId } as unknown as Flashcard);
     setOpen(false);
-    setValues({
-      back: "",
-      front: "",
-      notes: null,
-      difficulty: null,
-      interval: null,
-      repetitions: null,
-      easeFactor: null,
-    });
+    setValues(emptyForm);
   };
 
   return (
@@ -133,9 +166,7 @@ export function Title({
               className="h-7 px-3 text-xs font-medium rounded-sm data-[state=active]:bg-background-3 data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground transition-all"
             >
               <span className="hidden sm:inline">Browse</span>
-              <span className="sm:hidden">
-                <LayoutGrid size={12} />
-              </span>
+              <span className="sm:hidden"><LayoutGrid size={12} /></span>
             </TabsTrigger>
             <TabsTrigger
               value="study"
@@ -147,72 +178,85 @@ export function Title({
         </Tabs>
 
         {/* Create card */}
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="h-8 gap-1.5 px-3">
+        {isMobile ? (
+          <>
+            <Button size="sm" className="h-8 gap-1.5 px-3" onClick={() => setOpen(true)}>
               <Plus size={13} />
-              <span className="hidden sm:inline text-xs">New card</span>
             </Button>
-          </DialogTrigger>
 
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>New flashcard</DialogTitle>
-              <DialogDescription>
-                Add a card to this deck. Front is the question, back is the answer.
-              </DialogDescription>
-            </DialogHeader>
-
-            <Separator />
-
-            <form onSubmit={onSubmit} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <Label>Front</Label>
-                <Input
-                  name="front"
-                  onChange={handleChange}
-                  value={values.front!}
-                  placeholder="Question…"
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label>Back</Label>
-                <Input
-                  name="back"
-                  onChange={handleChange}
-                  value={values.back!}
-                  placeholder="Answer…"
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label>Notes <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                <Input
-                  name="notes"
-                  onChange={handleChange}
-                  placeholder="Any extra context…"
-                  {...(values.notes ? { value: values.notes } : {})}
-                />
-              </div>
-
-              <Separator />
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setOpen(false)}
-                  disabled={isLoading}
-                  className="flex-1"
+            <Drawer.Root open={open} onOpenChange={setOpen} shouldScaleBackground>
+              <Drawer.Portal>
+                <Drawer.Overlay className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" />
+                <Drawer.Content
+                  className="fixed bottom-0 inset-x-0 z-50 flex flex-col outline-none"
+                  style={{ maxHeight: "88dvh" }}
                 >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isLoading} className="flex-1">
-                  Create
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                  <div
+                    className="flex flex-col overflow-hidden rounded-t-[24px] bg-background border-t border-x border-border/40"
+                    style={{ boxShadow: "0 -8px 40px rgba(0,0,0,0.5)" }}
+                  >
+                    <div className="flex justify-center pt-3 pb-1 shrink-0">
+                      <div className="w-9 h-[3px] rounded-full bg-muted-foreground/20" />
+                    </div>
+                    <div className="overflow-y-auto overscroll-contain px-5 pb-3">
+                      <Drawer.Title className="text-sm font-semibold text-foreground pt-2 pb-5">
+                        New flashcard
+                      </Drawer.Title>
+                      <form onSubmit={onSubmit} className="flex flex-col gap-4">
+                        <CardFormFields values={values} onChange={handleChange} />
+                        <div style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))" }}>
+                          <Button
+                            type="submit"
+                            disabled={isLoading || !values.front || !values.back}
+                            className="w-full h-12 rounded-xl font-semibold"
+                          >
+                            Create
+                          </Button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </Drawer.Content>
+              </Drawer.Portal>
+            </Drawer.Root>
+          </>
+        ) : (
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="h-8 gap-1.5 px-3">
+                <Plus size={13} />
+                <span className="hidden sm:inline text-xs">New card</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>New flashcard</DialogTitle>
+                <DialogDescription>
+                  Add a card to this deck. Front is the question, back is the answer.
+                </DialogDescription>
+              </DialogHeader>
+              <Separator />
+              <form onSubmit={onSubmit} className="flex flex-col gap-4">
+                <CardFormFields values={values} onChange={handleChange} />
+                <Separator />
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setOpen(false)}
+                    disabled={isLoading}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isLoading} className="flex-1">
+                    Create
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </div>
   );
