@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { motion } from "motion/react";
 import { Flashcard } from "@/generated/prisma";
 import { useParams } from "next/navigation";
 import useSWR from "swr";
@@ -172,10 +173,10 @@ export function FlashcardsView() {
             </div>
           </div>
           <div className="pt-8 space-x-3">
-            <Button onClick={() => setShowSetup(true)}>Study More</Button>
             <Button variant="outline" onClick={() => window.history.back()}>
               Back to Deck
             </Button>
+            <Button onClick={() => setShowSetup(true)}>Study More</Button>
           </div>
         </div>
 
@@ -192,59 +193,86 @@ export function FlashcardsView() {
   // Active session
   if (sessionState.isActive && currentCard) {
     return (
-      <div className="space-y-6">
-        {/* Progress Header */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2 text-sm">
+      <div className="flex flex-col h-full -m-4 sm:m-0 sm:space-y-6">
+        {/* ── Progress header ─────────────────────────────────── */}
+        <div className="shrink-0 sm:space-y-4">
+          {/* Full-bleed progress bar on mobile */}
+          <div className="h-[2px] bg-background-2 sm:hidden overflow-hidden">
+            <motion.div
+              className="h-full bg-foreground/25 origin-left"
+              animate={{ scaleX: progress / 100 }}
+              style={{ transformOrigin: "left" }}
+              transition={{ type: "spring", stiffness: 120, damping: 20 }}
+            />
+          </div>
+
+          {/* Desktop-style progress bar */}
+          <Progress value={progress} className="h-1.5 hidden sm:block" />
+
+          <div className="flex items-center justify-between px-4 py-2.5 sm:px-0 sm:py-0">
+            {/* Compact stats — mobile */}
+            <div className="flex items-center gap-2.5 sm:hidden">
+              <span className="font-mono text-sm font-semibold tabular-nums">
+                {sessionState.completedCards}
+                <span className="text-muted-foreground/35 font-normal">
+                  /{sessionState.cards.length}
+                </span>
+              </span>
+              <span className="text-muted-foreground/25 text-xs">·</span>
+              <span className="font-mono text-xs text-muted-foreground/60 tabular-nums">
+                {Math.round(accuracy)}%
+              </span>
+              {sessionState.currentStreak > 1 && (
+                <>
+                  <span className="text-muted-foreground/25 text-xs">·</span>
+                  <span className="text-xs">🔥 {sessionState.currentStreak}</span>
+                </>
+              )}
+            </div>
+
+            {/* Full stats — desktop */}
+            <div className="hidden sm:flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-1.5 text-sm">
                 <Target className="w-4 h-4 text-muted-foreground" />
                 <span className="font-medium">
                   {sessionState.completedCards}/{sessionState.cards.length}
                 </span>
-                <span className="text-muted-foreground">cards</span>
               </div>
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-1.5 text-sm">
                 <TrendingUp className="w-4 h-4 text-muted-foreground" />
                 <span className="font-medium">{Math.round(accuracy)}%</span>
-                <span className="text-muted-foreground">accuracy</span>
               </div>
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-1.5 text-sm">
                 <Clock className="w-4 h-4 text-muted-foreground" />
                 <span className="font-medium">{formatTime(elapsedTime)}</span>
               </div>
               {sessionState.currentStreak > 0 && (
                 <div className="flex items-center gap-1 text-sm">
                   <span>🔥</span>
-                  <span className="font-medium">
-                    {sessionState.currentStreak}
-                  </span>
+                  <span className="font-medium">{sessionState.currentStreak}</span>
                 </div>
               )}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                if (confirm("End study session?")) {
-                  endSession();
-                }
-              }}
+
+            <button
+              onClick={() => { if (confirm("End study session?")) endSession(); }}
+              className="p-1.5 rounded-md text-muted-foreground/40 hover:text-muted-foreground active:text-foreground transition-colors"
             >
               <X className="w-4 h-4" />
-            </Button>
+            </button>
           </div>
-          <Progress value={progress} className="h-2" />
         </div>
 
-        {/* Card */}
-        <SessionCard
-          card={currentCard}
-          showBack={sessionState.showBack}
-          onFlip={flipCard}
-          onRate={rateCard}
-          isLoading={isLoading}
-        />
+        {/* ── Card — fills remaining height on mobile ────────── */}
+        <div className="flex-1 min-h-0 sm:flex-none">
+          <SessionCard
+            card={currentCard}
+            showBack={sessionState.showBack}
+            onFlip={flipCard}
+            onRate={rateCard}
+            isLoading={isLoading}
+          />
+        </div>
       </div>
     );
   }

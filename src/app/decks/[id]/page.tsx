@@ -4,7 +4,7 @@ import View from "@/components/view";
 
 import { useDecks } from "@/providers/decks-provider";
 import { useParams } from "next/navigation";
-import { FlashcardsView, Title, FlashCard } from "@/components/Flashcards";
+import { FlashcardsView, Title, FlashCard, FlashCardRow } from "@/components/Flashcards";
 import { useState } from "react";
 import { Flashcard as FlashCardType } from "@/generated/prisma";
 
@@ -20,12 +20,14 @@ import { ArrowUpRightIcon, Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export type Mode = "study" | "normal";
+export type ViewMode = "grid" | "list";
 
 const Dashboard = () => {
   const { state, isLoading } = useDecks();
   const { id } = useParams();
 
   const [mode, setMode] = useState<Mode>("normal");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
   const currentDeck = state.decks.find((deck) => deck.id === id);
 
@@ -36,16 +38,25 @@ const Dashboard = () => {
       title={currentDeck?.title!}
       deckId={currentDeck?.id!}
       amount={currentDeck?.flashcards?.length}
+      viewMode={viewMode}
+      onViewModeChange={setViewMode}
     />
   );
 
   return (
     <View title={title} subTitle={currentDeck?.description!} isLoading={isLoading}>
       {mode === "study" && <FlashcardsView />}
-      {mode === "normal" && (
-        <div className="flex gap-4 flex-wrap overflow-scroll">
+      {mode === "normal" && viewMode === "grid" && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {currentDeck?.flashcards?.map((card: FlashCardType) => (
             <FlashCard key={card.id} card={card} />
+          ))}
+        </div>
+      )}
+      {mode === "normal" && viewMode === "list" && (
+        <div className="border border-divider-1 rounded-md overflow-hidden">
+          {currentDeck?.flashcards?.map((card: FlashCardType, i: number) => (
+            <FlashCardRow key={card.id} card={card} index={i} />
           ))}
         </div>
       )}

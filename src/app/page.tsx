@@ -29,7 +29,7 @@ function DeckGrid() {
   return (
     <div className="flex flex-col h-full">
       {/* Page header */}
-      <div className="flex items-center justify-between px-8 py-5 border-b border-border">
+      <div className="flex items-center justify-between px-4 py-4 sm:px-8 sm:py-5 border-b border-border">
         <div>
           <h1 className="text-sm font-semibold text-foreground">Your Decks</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -52,9 +52,9 @@ function DeckGrid() {
       </div>
 
       {/* Grid content */}
-      <div className="flex-1 overflow-y-auto p-8">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-8">
         {isLoading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-44 rounded-lg bg-background-2 animate-pulse" />
             ))}
@@ -63,7 +63,7 @@ function DeckGrid() {
           <EmptyState />
         ) : (
           <motion.div
-            className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
             initial="hidden"
             animate="visible"
             variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
@@ -123,13 +123,12 @@ function DeckCard({ deck, onClick }: { deck: Deck; onClick: () => void }) {
             {cards.slice(0, 20).map((c: Flashcard, i: number) => (
               <div
                 key={i}
-                className={`h-1 flex-1 rounded-full ${
-                  c.difficulty >= 4
+                className={`h-1 flex-1 rounded-full ${c.difficulty >= 4
                     ? "bg-success/60"
                     : c.difficulty >= 2
                       ? "bg-muted-foreground/40"
                       : "bg-destructive/50"
-                }`}
+                  }`}
               />
             ))}
           </div>

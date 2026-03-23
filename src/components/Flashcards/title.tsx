@@ -1,3 +1,5 @@
+"use client";
+
 import { ChangeEvent, FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,14 +11,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Separator } from "@radix-ui/react-separator";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Flashcard } from "@/generated/prisma";
 import useCreateFlashcard from "@/hooks/use-create-flashcard";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
-import { Mode } from "@/app/decks/[id]/page";
+import { Mode, ViewMode } from "@/app/decks/[id]/page";
 import { Badge } from "../ui/badge";
+import { LayoutGrid, List, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Separator } from "@radix-ui/react-separator";
 
 type FlashcardForm = Omit<
   Flashcard,
@@ -36,11 +40,20 @@ interface TitleProps {
   onModeChange: (mode: Mode) => void;
   mode: Mode;
   amount: number;
+  viewMode: ViewMode;
+  onViewModeChange: (v: ViewMode) => void;
 }
 
-export function Title({ amount, title, deckId, onModeChange, mode }: TitleProps) {
+export function Title({
+  amount,
+  title,
+  deckId,
+  onModeChange,
+  mode,
+  viewMode,
+  onViewModeChange,
+}: TitleProps) {
   const { handleCreate, isLoading } = useCreateFlashcard();
-
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<Record<keyof FlashcardForm, string | null>>({
     back: "",
@@ -72,45 +85,83 @@ export function Title({ amount, title, deckId, onModeChange, mode }: TitleProps)
   };
 
   return (
-    <div className="flex justify-between">
-      <div className="flex items-center gap-2">
-        <span>{title}</span>
-        <Badge variant="outline" className="m-0">
-          {amount || 0} Card{amount === 1 ? "" : "s"}
+    <div className="flex items-center justify-between gap-3 w-full min-w-0">
+      {/* Left — title + count */}
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="truncate font-semibold text-sm">{title}</span>
+        <Badge variant="outline" className="shrink-0 tabular-nums">
+          {amount ?? 0}
         </Badge>
       </div>
 
-      <div className="flex flex-row gap-2">
-        <Tabs value={mode} onValueChange={(value) => onModeChange(value as Mode)}>
-          <TabsList className="bg-background-2 border border-border p-1 h-9">
+      {/* Right — controls grouped */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* View toggle — only in browse mode */}
+        {mode === "normal" && (
+          <div className="flex items-center h-8 border border-border rounded-md overflow-hidden bg-background-2">
+            <button
+              onClick={() => onViewModeChange("grid")}
+              className={cn(
+                "px-2.5 h-full flex items-center transition-colors",
+                viewMode === "grid"
+                  ? "bg-background-3 text-foreground"
+                  : "text-muted-foreground hover:bg-background-3/50",
+              )}
+            >
+              <LayoutGrid size={13} />
+            </button>
+            <div className="w-px h-4 bg-border" />
+            <button
+              onClick={() => onViewModeChange("list")}
+              className={cn(
+                "px-2.5 h-full flex items-center transition-colors",
+                viewMode === "list"
+                  ? "bg-background-3 text-foreground"
+                  : "text-muted-foreground hover:bg-background-3/50",
+              )}
+            >
+              <List size={13} />
+            </button>
+          </div>
+        )}
+
+        {/* Mode switcher */}
+        <Tabs value={mode} onValueChange={(v) => onModeChange(v as Mode)}>
+          <TabsList className="h-8 bg-background-2 border border-border p-0.5 gap-0.5">
             <TabsTrigger
               value="normal"
-              className="data-[state=active]:bg-background-3 data-[state=active]:text-foreground data-[state=active]:font-medium hover:bg-background-3 transition-all duration-200 px-3 py-1.5 text-sm font-medium rounded-md"
+              className="h-7 px-3 text-xs font-medium rounded-sm data-[state=active]:bg-background-3 data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground transition-all"
             >
-              Normal Mode
+              <span className="hidden sm:inline">Browse</span>
+              <span className="sm:hidden">
+                <LayoutGrid size={12} />
+              </span>
             </TabsTrigger>
             <TabsTrigger
               value="study"
-              className="data-[state=active]:bg-background-3 data-[state=active]:text-foreground data-[state=active]:font-medium hover:bg-background-3 transition-all duration-200 px-3 py-1.5 text-sm font-medium rounded-md"
+              className="h-7 px-3 text-xs font-medium rounded-sm data-[state=active]:bg-background-3 data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground transition-all"
             >
-              Study Mode
+              Study
             </TabsTrigger>
           </TabsList>
         </Tabs>
 
+        {/* Create card */}
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button>Create flashcard</Button>
+            <Button size="sm" className="h-8 gap-1.5 px-3">
+              <Plus size={13} />
+              <span className="hidden sm:inline text-xs">New card</span>
+            </Button>
           </DialogTrigger>
+
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create new flashcard</DialogTitle>
+              <DialogTitle>New flashcard</DialogTitle>
+              <DialogDescription>
+                Add a card to this deck. Front is the question, back is the answer.
+              </DialogDescription>
             </DialogHeader>
-
-            <DialogDescription>
-              Add a new flashcard to this deck. Enter the front and back content, plus any
-              additional notes.
-            </DialogDescription>
 
             <Separator />
 
@@ -119,49 +170,44 @@ export function Title({ amount, title, deckId, onModeChange, mode }: TitleProps)
                 <Label>Front</Label>
                 <Input
                   name="front"
-                  onChange={(e) => handleChange(e)}
-                  className="w-full"
-                  placeholder="What's on the front of the card?"
+                  onChange={handleChange}
                   value={values.front!}
+                  placeholder="Question…"
                 />
               </div>
-
               <div className="flex flex-col gap-2">
                 <Label>Back</Label>
                 <Input
                   name="back"
-                  className="w-full"
-                  placeholder="What's on the back of the card?"
-                  onChange={(e) => handleChange(e)}
+                  onChange={handleChange}
                   value={values.back!}
+                  placeholder="Answer…"
                 />
               </div>
-
               <div className="flex flex-col gap-2">
-                <Label>Notes (optional)</Label>
+                <Label>Notes <span className="text-muted-foreground font-normal">(optional)</span></Label>
                 <Input
                   name="notes"
-                  className="w-full"
-                  placeholder="Any additional notes or context..."
-                  onChange={(e) => handleChange(e)}
-                  {...(values.notes && { notes: values.notes })}
+                  onChange={handleChange}
+                  placeholder="Any extra context…"
+                  {...(values.notes ? { value: values.notes } : {})}
                 />
               </div>
 
               <Separator />
 
-              <DialogFooter className="w-full">
+              <DialogFooter>
                 <Button
-                  onClick={() => setOpen(false)}
-                  className="flex-1"
+                  type="button"
                   variant="outline"
+                  onClick={() => setOpen(false)}
                   disabled={isLoading}
+                  className="flex-1"
                 >
-                  CANCEL
+                  Cancel
                 </Button>
-
-                <Button disabled={isLoading} type="submit" className="flex-1">
-                  CONFIRM
+                <Button type="submit" disabled={isLoading} className="flex-1">
+                  Create
                 </Button>
               </DialogFooter>
             </form>

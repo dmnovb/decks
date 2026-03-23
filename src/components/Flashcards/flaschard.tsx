@@ -397,4 +397,42 @@ const FlashCardSheet = ({
   );
 };
 
+// ── FlashCard list row ─────────────────────────────────────────────────────
+
+const difficultyDot: Record<number, string> = {
+  0: "bg-destructive",
+  1: "bg-destructive",
+  2: "bg-amber-400",
+  3: "bg-success",
+  4: "bg-success",
+  5: "bg-success",
+};
+
+export function FlashCardRow({ card, index }: { card: FlashCardType; index: number }) {
+  const dot =
+    card.totalReviews === 0 ? "bg-foreground/20" : difficultyDot[card.difficulty] ?? "bg-foreground/20";
+
+  const dueText = card.nextReview
+    ? new Date(card.nextReview).toLocaleDateString("en", { month: "short", day: "numeric" })
+    : "–";
+
+  return (
+    <FlashCardSheet card={card}>
+      <div className="group flex items-center gap-3 px-4 py-3 hover:bg-background-1 border-b border-divider-1 last:border-b-0 cursor-pointer transition-colors">
+        <span className="text-[11px] text-muted-foreground/30 tabular-nums w-6 text-right shrink-0 font-mono">
+          {index + 1}
+        </span>
+        <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dot)} />
+        <span className="flex-1 text-sm text-foreground truncate leading-none">{card.front}</span>
+        <span className="text-xs text-muted-foreground/50 truncate max-w-[220px] hidden md:block leading-none">
+          {card.back}
+        </span>
+        <span className="text-[11px] text-muted-foreground/40 tabular-nums font-mono shrink-0 w-16 text-right">
+          {dueText}
+        </span>
+      </div>
+    </FlashCardSheet>
+  );
+}
+
 export default FlashCardSheet;
