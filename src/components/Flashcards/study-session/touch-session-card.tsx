@@ -82,12 +82,12 @@ export function TouchSessionCard({
   const rotate = useTransform(x, [-220, 220], [-9, 9]);
 
   // Directional color wash
-  const againOverlay = useTransform(x, [-SWIPE_THRESHOLD, 0], [0.14, 0]);
-  const goodOverlay  = useTransform(x, [0, SWIPE_THRESHOLD], [0, 0.14]);
+  const goodOverlay  = useTransform(x, [-SWIPE_THRESHOLD, 0], [0.14, 0]);
+  const againOverlay = useTransform(x, [0, SWIPE_THRESHOLD], [0, 0.14]);
 
   // Stamp badges fade in as you approach threshold
-  const againStamp = useTransform(x, [-SWIPE_THRESHOLD * 2, -SWIPE_THRESHOLD * 0.6], [1, 0]);
-  const goodStamp  = useTransform(x, [SWIPE_THRESHOLD * 0.6, SWIPE_THRESHOLD * 2], [0, 1]);
+  const goodStamp  = useTransform(x, [-SWIPE_THRESHOLD * 2, -SWIPE_THRESHOLD * 0.6], [1, 0]);
+  const againStamp = useTransform(x, [SWIPE_THRESHOLD * 0.6, SWIPE_THRESHOLD * 2], [0, 1]);
 
   const [thresholdCrossed, setThresholdCrossed] = useState(false);
 
@@ -113,10 +113,10 @@ export function TouchSessionCard({
       }
       if (info.offset.x < -SWIPE_THRESHOLD) {
         haptic(30);
-        onRate(0);
+        onRate(4);
       } else if (info.offset.x > SWIPE_THRESHOLD) {
         haptic(30);
-        onRate(4);
+        onRate(0);
       }
       setThresholdCrossed(false);
     },
@@ -174,25 +174,25 @@ export function TouchSessionCard({
               <>
                 <motion.div
                   className="absolute top-5 left-5 z-20 pointer-events-none"
-                  style={{ opacity: againStamp }}
+                  style={{ opacity: goodStamp }}
                 >
                   <span
-                    className="block border-[2px] border-destructive text-destructive text-[11px] font-black tracking-[0.22em] uppercase px-2.5 py-1 rounded-lg"
+                    className="block border-[2px] border-success text-success text-[11px] font-black tracking-[0.22em] uppercase px-2.5 py-1 rounded-lg"
                     style={{ transform: "rotate(-10deg)" }}
                   >
-                    Again
+                    Good
                   </span>
                 </motion.div>
 
                 <motion.div
                   className="absolute top-5 right-5 z-20 pointer-events-none"
-                  style={{ opacity: goodStamp }}
+                  style={{ opacity: againStamp }}
                 >
                   <span
-                    className="block border-[2px] border-success text-success text-[11px] font-black tracking-[0.22em] uppercase px-2.5 py-1 rounded-lg"
+                    className="block border-[2px] border-destructive text-destructive text-[11px] font-black tracking-[0.22em] uppercase px-2.5 py-1 rounded-lg"
                     style={{ transform: "rotate(10deg)" }}
                   >
-                    Good
+                    Again
                   </span>
                 </motion.div>
               </>
@@ -275,8 +275,8 @@ export function TouchSessionCard({
 
                   {/* Swipe direction whisper */}
                   <div className="flex justify-between mt-5 text-[8px] tracking-[0.2em] uppercase text-muted-foreground/18 font-medium select-none">
-                    <span>← again</span>
-                    <span>good →</span>
+                    <span>← good</span>
+                    <span>again →</span>
                   </div>
                 </motion.div>
               )}
