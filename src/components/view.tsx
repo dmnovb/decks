@@ -12,9 +12,9 @@ const View = ({ isLoading, children, title, subTitle }: Props) => {
   return (
     <div className="flex flex-col h-full">
       <div className="flex flex-col gap-1 px-4 py-4 sm:px-8 sm:py-5 border-b border-border shrink-0">
-        <span className="text-sm font-semibold leading-[1.5]">
+        <div className="text-sm font-semibold leading-[1.5]">
           {isLoading ? <Skeleton className="w-[150px] h-[25px] rounded-xs" /> : title}
-        </span>
+        </div>
         {subTitle && (
           <span className="text-xs text-muted-foreground">
             {isLoading ? <Skeleton className="w-[100px] h-[15px] rounded-xs" /> : subTitle}
