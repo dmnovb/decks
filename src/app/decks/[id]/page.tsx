@@ -16,8 +16,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { ArrowUpRightIcon, Folder } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Folder } from "lucide-react";
 
 export type Mode = "study" | "normal";
 export type ViewMode = "grid" | "list";
@@ -79,9 +78,7 @@ const EmptyView = () => (
       </EmptyDescription>
     </EmptyHeader>
     <EmptyContent>
-      <div className="flex gap-2">
-        <Button variant="secondary">Create Flashcard</Button>
-      </div>
+      <p className="text-xs text-muted-foreground">Use the + button above to add your first card.</p>
     </EmptyContent>
   </Empty>
 );

@@ -91,7 +91,7 @@ function StatTile({
 export function FlashCard({ card }: { card: FlashCardType }) {
   return (
     <FlashCardDrawer card={card}>
-      <div className="hover:cursor-pointer group transition-all w-full max-w-sm flex flex-col bg-background-1 border border-divider-1 hover:border-divider-2 rounded-sm overflow-hidden">
+      <div className="hover:cursor-pointer group transition-all w-full flex flex-col bg-background-1 border border-divider-1 hover:border-divider-2 rounded-sm overflow-hidden">
         {/* Top bar */}
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
           <DifficultyBadge difficulty={card.difficulty} />

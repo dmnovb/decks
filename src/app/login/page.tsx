@@ -10,7 +10,7 @@ import { FaGoogle, FaGithub } from "react-icons/fa";
 
 const Login = () => {
   return (
-    <div className="flex flex-row min-h-screen justify-center items-center z-50">
+    <div className="flex w-full flex-row min-h-screen justify-center items-center z-50">
       <Noise />
 
       <div

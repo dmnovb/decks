@@ -196,7 +196,6 @@ function DeckGrid() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-4 sm:px-8 sm:py-5 border-b border-border">
         <div>
           <h1 className="text-sm font-semibold text-foreground">Your Library</h1>
@@ -233,45 +232,21 @@ function DeckGrid() {
           <EmptyState onCreateDeck={() => openCreate("deck")} />
         ) : (
           <div className="space-y-6">
-            {/* Folders */}
-            {rootFolders.length > 0 && (
-              <div className="space-y-2">
-                {rootFolders.map((folder) => (
-                  <FolderSection
-                    key={folder.id}
-                    folder={folder}
-                    decks={decks.filter((d) => d.folderId === folder.id)}
-                    isExpanded={expandedFolders.has(folder.id)}
-                    onToggle={() => toggleFolder(folder.id)}
-                    onDeckClick={(id) => router.push(`/decks/${id}`)}
+            {rootDecks.length > 0 && (
+              <motion.div
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                initial="hidden"
+                animate="visible"
+                variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
+              >
+                {rootDecks.map((deck) => (
+                  <DeckCard
+                    key={deck.id}
+                    deck={deck}
+                    onClick={() => router.push(`/decks/${deck.id}`)}
                   />
                 ))}
-              </div>
-            )}
-
-            {/* Root decks */}
-            {rootDecks.length > 0 && (
-              <div>
-                {rootFolders.length > 0 && (
-                  <p className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-widest mb-3">
-                    Unfiled
-                  </p>
-                )}
-                <motion.div
-                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-                  initial="hidden"
-                  animate="visible"
-                  variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
-                >
-                  {rootDecks.map((deck) => (
-                    <DeckCard
-                      key={deck.id}
-                      deck={deck}
-                      onClick={() => router.push(`/decks/${deck.id}`)}
-                    />
-                  ))}
-                </motion.div>
-              </div>
+              </motion.div>
             )}
           </div>
         )}
@@ -466,13 +441,12 @@ function DeckCard({ deck, onClick }: { deck: Deck; onClick: () => void }) {
             {cards.slice(0, 20).map((c: Flashcard, i: number) => (
               <div
                 key={i}
-                className={`h-1 flex-1 rounded-full ${
-                  c.difficulty >= 4
-                    ? "bg-success/60"
-                    : c.difficulty >= 2
-                      ? "bg-muted-foreground/40"
-                      : "bg-destructive/50"
-                }`}
+                className={`h-1 flex-1 rounded-full ${c.difficulty >= 4
+                  ? "bg-success/60"
+                  : c.difficulty >= 2
+                    ? "bg-muted-foreground/40"
+                    : "bg-destructive/50"
+                  }`}
               />
             ))}
           </div>
@@ -510,7 +484,7 @@ function EmptyState({ onCreateDeck }: { onCreateDeck: () => void }) {
       </div>
       <button
         onClick={onCreateDeck}
-        className="md:hidden text-xs text-foreground underline underline-offset-2"
+        className="text-xs text-foreground underline underline-offset-2"
       >
         Create deck
       </button>
