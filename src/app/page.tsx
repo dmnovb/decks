@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import useCreateFolder from "@/hooks/use-create-folder";
 import { Folder } from "@/types/deck";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function Home() {
   return <DeckGrid />;
@@ -116,6 +117,7 @@ function DeckGrid() {
   const { state: foldersState, isLoading: foldersLoading } = useFolders();
   const { handleCreate: handleCreateFolder } = useCreateFolder();
   const router = useRouter();
+  const isMobile = useIsMobile();
 
   const { decks } = state;
   const { folders } = foldersState;
@@ -196,6 +198,7 @@ function DeckGrid() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-4 sm:px-8 sm:py-5 border-b border-border">
         <div>
           <h1 className="text-sm font-semibold text-foreground">Your Library</h1>
@@ -232,22 +235,35 @@ function DeckGrid() {
           <EmptyState onCreateDeck={() => openCreate("deck")} />
         ) : (
           <div className="space-y-6">
-            {rootDecks.length > 0 && (
-              <motion.div
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-                initial="hidden"
-                animate="visible"
-                variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
-              >
-                {rootDecks.map((deck) => (
-                  <DeckCard
-                    key={deck.id}
-                    deck={deck}
-                    onClick={() => router.push(`/decks/${deck.id}`)}
+            {isMobile && rootFolders.length > 0 && (
+              <div className="space-y-2">
+                {rootFolders.map((folder) => (
+                  <FolderSection
+                    key={folder.id}
+                    folder={folder}
+                    decks={decks.filter((d) => d.folderId === folder.id)}
+                    isExpanded={expandedFolders.has(folder.id)}
+                    onToggle={() => toggleFolder(folder.id)}
+                    onDeckClick={(id) => router.push(`/decks/${id}`)}
                   />
                 ))}
-              </motion.div>
+              </div>
             )}
+
+            <motion.div
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+              initial="hidden"
+              animate="visible"
+              variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
+            >
+              {rootDecks.map((deck) => (
+                <DeckCard
+                  key={deck.id}
+                  deck={deck}
+                  onClick={() => router.push(`/decks/${deck.id}`)}
+                />
+              ))}
+            </motion.div>
           </div>
         )}
       </div>
