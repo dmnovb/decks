@@ -1,7 +1,0 @@
-- generic [active] [ref=e1]:
-  - paragraph [ref=e5]: Loading...
-  - button "Color Tokens ↑" [ref=e7]:
-    - generic [ref=e15]: Color Tokens
-    - generic [ref=e16]: ↑
-  - region "Notifications alt+T"
-  - alert [ref=e17]
