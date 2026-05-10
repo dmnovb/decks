@@ -1,0 +1,36 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - generic [ref=e7]: ALCOVE
+          - button "Create new" [ref=e8]:
+            - img [ref=e9]
+        - generic [ref=e10]:
+          - link "Home" [ref=e11] [cursor=pointer]:
+            - /url: /
+            - img [ref=e12]
+            - generic [ref=e15]: Home
+          - link "Chat" [ref=e16] [cursor=pointer]:
+            - /url: /chat
+            - img [ref=e17]
+            - generic [ref=e19]: Chat
+          - link "Stats" [ref=e20] [cursor=pointer]:
+            - /url: /stats
+            - img [ref=e21]
+            - generic [ref=e22]: Stats
+        - paragraph [ref=e24]: Library
+        - button "C cursor-tester" [ref=e31]:
+          - generic [ref=e32] [cursor=pointer]:
+            - generic [ref=e34]: C
+            - generic [ref=e35]: cursor-tester
+      - status [ref=e36]
+    - main [ref=e37]:
+      - generic [ref=e39]:
+        - generic [ref=e40]: Your Library
+        - generic [ref=e42]: 0 decks
+  - button "Color Tokens ↑" [ref=e45]:
+    - generic [ref=e53]: Color Tokens
+    - generic [ref=e54]: ↑
+  - region "Notifications alt+T"
+  - alert [ref=e55]

@@ -49,12 +49,6 @@ export function FlashcardsView() {
     elapsedTime,
   } = useStudySession();
 
-  // Auto-open setup dialog on mount
-  useEffect(() => {
-    if (flashcards.length > 0 && !sessionState.isActive) {
-      setShowSetup(true);
-    }
-  }, [flashcards.length, sessionState.isActive]);
 
   // Keyboard shortcuts
   useEffect(() => {

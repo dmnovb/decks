@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/providers/auth-provider";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { DecksProvider } from "@/providers";
 import { FoldersProvider } from "@/providers/folders-provider";
@@ -15,6 +15,7 @@ interface AuthGuardProps {
 
 export const AuthGuard = ({ children }: AuthGuardProps) => {
   const { isAuthenticated, isInitializing } = useAuth();
+  const router = useRouter();
 
   const pathname = usePathname();
 
@@ -23,7 +24,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
 
   useEffect(() => {
     if (!isInitializing && !isAuthenticated && !isPublicRoute) {
-      window.location.href = "/login";
+      router.push("/login");
     }
   }, [isAuthenticated, isInitializing, isPublicRoute]);
 

@@ -1,0 +1,34 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - img [ref=e4]
+      - generic [ref=e8]:
+        - generic [ref=e9]:
+          - img [ref=e10]
+          - generic [ref=e14]: ALCOVE
+        - generic [ref=e15]:
+          - tablist [ref=e16]:
+            - tab "Log in" [selected] [ref=e17]
+            - tab "Sign up" [ref=e18]
+          - tabpanel "Log in" [ref=e19]:
+            - generic [ref=e20]:
+              - generic [ref=e21]:
+                - generic [ref=e22]: Email address
+                - textbox "Enter your email address" [ref=e23]
+              - generic [ref=e24]:
+                - generic [ref=e25]:
+                  - generic [ref=e26]: Password
+                  - button "Password" [ref=e27]: Forgot password?
+                - textbox "Enter your password" [ref=e28]
+              - button "LOG IN" [ref=e29]
+              - generic [ref=e32]: OR
+              - generic [ref=e34]:
+                - button "Continue with Google" [ref=e35]:
+                  - img
+                  - text: Continue with Google
+                - button "Continue with Github" [ref=e36]: Continue with Github
+  - button "Color Tokens ↑" [ref=e38]:
+    - generic [ref=e46]: Color Tokens
+    - generic [ref=e47]: ↑
+  - region "Notifications alt+T"
+  - alert [ref=e48]
