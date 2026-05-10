@@ -3,8 +3,14 @@
 import { useState } from "react";
 import { Drawer } from "vaul";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Flashcard } from "@/generated/prisma";
 import { SessionConfig, isCardDue, isCardNew } from "@/utils/card-filters";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 interface SessionSetupProps {
@@ -53,6 +59,8 @@ export function SessionSetup({
   onStart,
   allCards,
 }: SessionSetupProps) {
+  const isMobile = useIsMobile();
+
   const [maxCards, setMaxCards]       = useState<number | undefined>(20);
   const [maxNewCards, setMaxNewCards] = useState<number | undefined>(5);
   const [dueOnly, setDueOnly]         = useState(true);
@@ -73,108 +81,121 @@ export function SessionSetup({
     onClose();
   };
 
-  return (
-    <Drawer.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }} shouldScaleBackground>
-      <Drawer.Portal>
-        <Drawer.Overlay className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" />
+  const body = (
+    <>
+      {/* Stats strip */}
+      <div className="flex items-center rounded-xl bg-background-2 border border-border/50 px-4 py-3 mb-5">
+        <Stat label="Due" value={dueCards.length} />
+        <Divider />
+        <Stat label="New" value={newCards.length} />
+        <Divider />
+        <Stat label="Total" value={allCards.length} />
+        <div className="flex-1" />
+        <div className="text-right">
+          <p className="text-[11px] text-muted-foreground/60 uppercase tracking-[0.16em] mb-0.5">Session</p>
+          <p className="text-base font-bold tabular-nums">
+            {estimatedTotal}
+            <span className="text-xs font-normal text-muted-foreground/50 ml-1">cards</span>
+          </p>
+        </div>
+      </div>
 
-        <Drawer.Content
-          className="fixed bottom-0 inset-x-0 z-50 flex flex-col outline-none"
-          style={{ maxHeight: "92dvh" }}
-        >
-          {/* Sheet surface */}
-          <div className="flex flex-col overflow-hidden rounded-t-[24px] bg-background border-t border-x border-border/40"
-               style={{ boxShadow: "0 -8px 40px rgba(0,0,0,0.5)" }}>
+      {/* Max cards */}
+      <Section label="Cards per session">
+        <div className="grid grid-cols-4 gap-1.5">
+          {CARD_LIMITS.map((n) => (
+            <PillButton key={String(n)} active={maxCards === n} onClick={() => setMaxCards(n)}>
+              {n ?? "All"}
+            </PillButton>
+          ))}
+        </div>
+      </Section>
 
-            {/* Drag handle */}
-            <div className="flex justify-center pt-3 pb-1 shrink-0">
-              <div className="w-9 h-[3px] rounded-full bg-muted-foreground/20" />
-            </div>
+      {/* Max new cards */}
+      <Section label="New cards limit">
+        <div className="grid grid-cols-4 gap-1.5">
+          {NEW_LIMITS.map((n) => (
+            <PillButton key={String(n)} active={maxNewCards === n} onClick={() => setMaxNewCards(n)}>
+              {n ?? "All"}
+            </PillButton>
+          ))}
+        </div>
+      </Section>
 
-            {/* Scrollable body */}
-            <div className="overflow-y-auto overscroll-contain px-5 pb-3">
+      {/* Toggles */}
+      <div className="rounded-xl bg-background-2 border border-border/50 divide-y divide-border/40 mb-5">
+        <ToggleRow label="Due cards only" sub="Skip cards not yet scheduled" checked={dueOnly} onChange={() => setDueOnly(!dueOnly)} />
+        <ToggleRow label="Shuffle" sub="Randomise card order" checked={shuffled} onChange={() => setShuffled(!shuffled)} />
+      </div>
 
-              {/* Title */}
-              <Drawer.Title className="text-sm font-semibold text-foreground pt-2 pb-5">
-                Study Session
-              </Drawer.Title>
+      {/* Estimated time */}
+      <p className="text-center text-[11px] text-muted-foreground/40 tracking-wide mb-5">
+        ~{Math.ceil(estimatedTotal * 0.5)} min estimated · {estimatedNew} new · {estimatedReview} review
+      </p>
+    </>
+  );
 
-              {/* Stats strip */}
-              <div className="flex items-center rounded-xl bg-background-2 border border-border/50 px-4 py-3 mb-5">
-                <Stat label="Due" value={dueCards.length} />
-                <Divider />
-                <Stat label="New" value={newCards.length} />
-                <Divider />
-                <Stat label="Total" value={allCards.length} />
-                <div className="flex-1" />
-                <div className="text-right">
-                  <p className="text-[11px] text-muted-foreground/60 uppercase tracking-[0.16em] mb-0.5">Session</p>
-                  <p className="text-base font-bold tabular-nums">
-                    {estimatedTotal}
-                    <span className="text-xs font-normal text-muted-foreground/50 ml-1">cards</span>
-                  </p>
-                </div>
-              </div>
+  const cta = (
+    <Button
+      onClick={handleStart}
+      disabled={estimatedTotal === 0}
+      className="w-full h-12 text-sm font-semibold rounded-xl"
+    >
+      Start{estimatedTotal > 0 ? ` · ${estimatedTotal} cards` : ""}
+    </Button>
+  );
 
-              {/* Max cards */}
-              <Section label="Cards per session">
-                <div className="grid grid-cols-4 gap-1.5">
-                  {CARD_LIMITS.map((n) => (
-                    <PillButton
-                      key={String(n)}
-                      active={maxCards === n}
-                      onClick={() => setMaxCards(n)}
-                    >
-                      {n ?? "All"}
-                    </PillButton>
-                  ))}
-                </div>
-              </Section>
-
-              {/* Max new cards */}
-              <Section label="New cards limit">
-                <div className="grid grid-cols-4 gap-1.5">
-                  {NEW_LIMITS.map((n) => (
-                    <PillButton
-                      key={String(n)}
-                      active={maxNewCards === n}
-                      onClick={() => setMaxNewCards(n)}
-                    >
-                      {n ?? "All"}
-                    </PillButton>
-                  ))}
-                </div>
-              </Section>
-
-              {/* Toggles */}
-              <div className="rounded-xl bg-background-2 border border-border/50 divide-y divide-border/40 mb-5">
-                <ToggleRow label="Due cards only" sub="Skip cards not yet scheduled" checked={dueOnly} onChange={() => setDueOnly(!dueOnly)} />
-                <ToggleRow label="Shuffle" sub="Randomise card order" checked={shuffled} onChange={() => setShuffled(!shuffled)} />
-              </div>
-
-              {/* Estimated time */}
-              <p className="text-center text-[11px] text-muted-foreground/40 tracking-wide mb-5">
-                ~{Math.ceil(estimatedTotal * 0.5)} min estimated · {estimatedNew} new · {estimatedReview} review
-              </p>
-            </div>
-
-            {/* Footer CTA — pinned above safe area */}
+  if (isMobile) {
+    return (
+      <Drawer.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }} shouldScaleBackground>
+        <Drawer.Portal>
+          <Drawer.Overlay className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" />
+          <Drawer.Content
+            className="fixed bottom-0 inset-x-0 z-50 flex flex-col outline-none"
+            style={{ maxHeight: "92dvh" }}
+          >
             <div
-              className="shrink-0 px-5 pb-3 pt-2 border-t border-border/30 bg-background"
-              style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+              className="flex flex-col overflow-hidden rounded-t-[24px] bg-background border-t border-x border-border/40"
+              style={{ boxShadow: "0 -8px 40px rgba(0,0,0,0.5)" }}
             >
-              <Button
-                onClick={handleStart}
-                disabled={estimatedTotal === 0}
-                className="w-full h-12 text-sm font-semibold rounded-xl"
+              <div className="flex justify-center pt-3 pb-1 shrink-0">
+                <div className="w-9 h-[3px] rounded-full bg-muted-foreground/20" />
+              </div>
+              <div className="overflow-y-auto overscroll-contain px-5 pb-3">
+                <Drawer.Title className="text-sm font-semibold text-foreground pt-2 pb-5">
+                  Study Session
+                </Drawer.Title>
+                {body}
+              </div>
+              <div
+                className="shrink-0 px-5 pb-3 pt-2 border-t border-border/30 bg-background"
+                style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
               >
-                Start{estimatedTotal > 0 ? ` · ${estimatedTotal} cards` : ""}
-              </Button>
+                {cta}
+              </div>
             </div>
+          </Drawer.Content>
+        </Drawer.Portal>
+      </Drawer.Root>
+    );
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-md p-0 overflow-hidden">
+        <div className="px-6 pt-6 pb-2">
+          <DialogTitle className="text-sm font-semibold text-foreground mb-5">
+            Study Session
+          </DialogTitle>
+          <div className="overflow-y-auto max-h-[60vh]">
+            {body}
           </div>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+        </div>
+        <div className="px-6 pb-6 pt-2 border-t border-border/30 bg-background">
+          {cta}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

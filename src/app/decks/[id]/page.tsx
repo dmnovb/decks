@@ -5,6 +5,7 @@ import View from "@/components/view";
 import { useDecks } from "@/providers/decks-provider";
 import { useParams } from "next/navigation";
 import { FlashcardsView, Title, FlashCard, FlashCardRow } from "@/components/Flashcards";
+import { MobileFABToolbar } from "@/components/Flashcards/mobile-fab-toolbar";
 import { useState } from "react";
 import { Flashcard as FlashCardType } from "@/generated/prisma";
 
@@ -44,6 +45,13 @@ const Dashboard = () => {
 
   return (
     <View title={title} subTitle={currentDeck?.description!} isLoading={isLoading}>
+      <MobileFABToolbar
+        mode={mode}
+        onModeChange={setMode}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        deckId={currentDeck?.id ?? ""}
+      />
       {mode === "study" && <FlashcardsView />}
       {mode === "normal" && viewMode === "grid" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

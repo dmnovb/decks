@@ -5,6 +5,7 @@ import { useFolders } from "@/providers/folders-provider";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, FormEvent } from "react";
 import { Flashcard } from "@/generated/prisma";
+import { Deck } from "@/types/deck";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Plus,
@@ -22,16 +23,20 @@ import { cn } from "@/lib/utils";
 import useCreateFolder from "@/hooks/use-create-folder";
 import { Folder } from "@/types/deck";
 import { useIsMobile } from "@/hooks/use-mobile";
+import View from "@/components/view";
+import { Subtitle } from "@/app/home";
 
 export default function Home() {
   return <DeckGrid />;
 }
 
-// ── Types ──────────────────────────────────────────────────────────────────
-
-type Deck = ReturnType<typeof useDecks>["state"]["decks"][0];
-
-// ── Folder section ─────────────────────────────────────────────────────────
+interface Props {
+  folder: Folder;
+  decks: Deck[];
+  isExpanded: boolean;
+  onToggle: () => void;
+  onDeckClick: (id: string) => void;
+}
 
 function FolderSection({
   folder,
@@ -39,13 +44,7 @@ function FolderSection({
   isExpanded,
   onToggle,
   onDeckClick,
-}: {
-  folder: Folder;
-  decks: Deck[];
-  isExpanded: boolean;
-  onToggle: () => void;
-  onDeckClick: (id: string) => void;
-}) {
+}: Props) {
   return (
     <div>
       <button
@@ -197,64 +196,31 @@ function DeckGrid() {
   const isEmpty = !isLoading && decks.length === 0 && folders.length === 0;
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 sm:px-8 sm:py-5 border-b border-border">
-        <div>
-          <h1 className="text-sm font-semibold text-foreground">Your Library</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {decks.length} {decks.length === 1 ? "deck" : "decks"}
-            {folders.length > 0 && ` · ${folders.length} ${folders.length === 1 ? "folder" : "folders"}`}
-            {globalStats.total > 0 && ` · ${globalStats.total} cards`}
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          {globalStats.due > 0 && (
-            <span className="text-xs text-muted-foreground">
-              <span className="text-foreground font-medium">{globalStats.due}</span> due
-            </span>
-          )}
-          {globalStats.maxStreak > 0 && (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Flame size={12} className="text-warning" />
-              <span className="text-foreground font-medium">{globalStats.maxStreak}</span>
-            </span>
-          )}
-        </div>
-      </div>
+    <View title="Your Library" subTitle={<Subtitle />}>
+      {isLoading ? null : isEmpty ? (
+        <EmptyState onCreateDeck={() => openCreate("deck")} />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {rootFolders.map((folder) => {
+            const folderDecks = decks.filter((d) => d.folderId === folder.id);
+            return (
+              <FolderSection
+                key={folder.id}
+                folder={folder}
+                decks={folderDecks}
+                isExpanded={expandedFolders.has(folder.id!)}
+                onToggle={() => toggleFolder(folder.id!)}
+                onDeckClick={(id) => router.push(`/decks/${id}`)}
+              />
+            );
+          })}
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-8">
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-44 rounded-lg bg-background-2 animate-pulse" />
-            ))}
-          </div>
-        ) : isEmpty ? (
-          <EmptyState onCreateDeck={() => openCreate("deck")} />
-        ) : (
-          <div className="space-y-6">
-            {isMobile && rootFolders.length > 0 && (
-              <div className="space-y-2">
-                {rootFolders.map((folder) => (
-                  <FolderSection
-                    key={folder.id}
-                    folder={folder}
-                    decks={decks.filter((d) => d.folderId === folder.id)}
-                    isExpanded={expandedFolders.has(folder.id)}
-                    onToggle={() => toggleFolder(folder.id)}
-                    onDeckClick={(id) => router.push(`/decks/${id}`)}
-                  />
-                ))}
-              </div>
-            )}
-
+          {rootDecks.length > 0 && (
             <motion.div
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
               initial="hidden"
               animate="visible"
-              variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
+              variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
             >
               {rootDecks.map((deck) => (
                 <DeckCard
@@ -264,150 +230,88 @@ function DeckGrid() {
                 />
               ))}
             </motion.div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
-      {/* ── Mobile FAB ──────────────────────────────────────────────────── */}
-      <button
-        onClick={() => openCreate("deck")}
-        className={cn(
-          "fixed right-4 z-30 md:hidden",
-          "w-12 h-12 rounded-full bg-foreground text-background shadow-lg",
-          "flex items-center justify-center active:scale-95 transition-transform",
-        )}
-        style={{
-          bottom: "calc(60px + env(safe-area-inset-bottom, 0px) + 16px)",
-        }}
-      >
-        <Plus size={20} strokeWidth={2.5} />
-      </button>
-
-      {/* ── Create drawer (triggered by FAB — mobile only) ──────────────── */}
-      <Drawer.Root
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        shouldScaleBackground
-      >
+      {/* Create drawer */}
+      <Drawer.Root open={createOpen} onOpenChange={setCreateOpen}>
         <Drawer.Portal>
-          <Drawer.Overlay className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" />
-          <Drawer.Content
-            className="fixed bottom-0 inset-x-0 z-50 flex flex-col outline-none"
-            style={{ maxHeight: "88dvh" }}
-          >
-            <div
-              className="flex flex-col overflow-hidden rounded-t-[24px] bg-background border-t border-x border-border/40"
-              style={{ boxShadow: "0 -8px 40px rgba(0,0,0,0.5)" }}
-            >
-              {/* Handle */}
-              <div className="flex justify-center pt-3 pb-1 shrink-0">
-                <div className="w-9 h-[3px] rounded-full bg-muted-foreground/20" />
-              </div>
-
-              {/* Scrollable body */}
-              <div className="overflow-y-auto overscroll-contain px-5 pb-3">
-                <Drawer.Title className="text-sm font-semibold text-foreground pt-2 pb-5">
-                  Create new
-                </Drawer.Title>
-
-                {/* Type toggle */}
-                <div className="grid grid-cols-2 gap-1.5 mb-5 p-1 bg-background-2 rounded-xl border border-border/50">
-                  {(["deck", "folder"] as const).map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setCreateType(type)}
-                      className={cn(
-                        "py-2 text-sm font-medium rounded-lg transition-colors capitalize",
-                        createType === type
-                          ? "bg-foreground text-background"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Deck form */}
-                {createType === "deck" && (
-                  <form onSubmit={handleCreateDeck} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground/70 uppercase tracking-widest">Title</Label>
-                      <Input
-                        placeholder="e.g. Spanish Basics"
-                        value={deckTitle}
-                        onChange={(e) => setDeckTitle(e.target.value)}
-                        autoFocus
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground/70 uppercase tracking-widest">
-                        Description <span className="normal-case font-normal text-muted-foreground/50">(optional)</span>
-                      </Label>
-                      <Input
-                        placeholder="What's this deck for?"
-                        value={deckDescription}
-                        onChange={(e) => setDeckDescription(e.target.value)}
-                      />
-                    </div>
-                    <div
-                      className="pt-2 pb-3"
-                      style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
-                    >
-                      <Button
-                        type="submit"
-                        disabled={!deckTitle.trim() || creatingDeck}
-                        className="w-full h-12 rounded-xl font-semibold"
-                      >
-                        {creatingDeck ? "Creating…" : "Create deck"}
-                      </Button>
-                    </div>
-                  </form>
-                )}
-
-                {/* Folder form */}
-                {createType === "folder" && (
-                  <form onSubmit={handleCreateFolderSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground/70 uppercase tracking-widest">Name</Label>
-                      <Input
-                        placeholder="e.g. Japanese"
-                        value={folderTitle}
-                        onChange={(e) => setFolderTitle(e.target.value)}
-                        autoFocus
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground/70 uppercase tracking-widest">
-                        Description <span className="normal-case font-normal text-muted-foreground/50">(optional)</span>
-                      </Label>
-                      <Input
-                        placeholder="What's in this folder?"
-                        value={folderDescription}
-                        onChange={(e) => setFolderDescription(e.target.value)}
-                      />
-                    </div>
-                    <div
-                      className="pt-2"
-                      style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
-                    >
-                      <Button
-                        type="submit"
-                        disabled={!folderTitle.trim() || creatingFolder}
-                        className="w-full h-12 rounded-xl font-semibold"
-                      >
-                        {creatingFolder ? "Creating…" : "Create folder"}
-                      </Button>
-                    </div>
-                  </form>
-                )}
-              </div>
+          <Drawer.Overlay className="fixed inset-0 bg-black/40 z-40" />
+          <Drawer.Content className="fixed bottom-0 inset-x-0 z-50 bg-background rounded-t-2xl p-6 pb-10 flex flex-col gap-4">
+            <div className="mx-auto w-10 h-1 rounded-full bg-border mb-2" />
+            <div className="flex gap-2 mb-2">
+              <Button
+                size="sm"
+                variant={createType === "deck" ? "default" : "outline"}
+                onClick={() => setCreateType("deck")}
+              >
+                Deck
+              </Button>
+              <Button
+                size="sm"
+                variant={createType === "folder" ? "default" : "outline"}
+                onClick={() => setCreateType("folder")}
+              >
+                Folder
+              </Button>
             </div>
+
+            {createType === "deck" ? (
+              <form onSubmit={handleCreateDeck} className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="deck-title">Title</Label>
+                  <Input
+                    id="deck-title"
+                    placeholder="e.g. Spanish Vocabulary"
+                    value={deckTitle}
+                    onChange={(e) => setDeckTitle(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="deck-desc">Description (optional)</Label>
+                  <Input
+                    id="deck-desc"
+                    placeholder="What is this deck about?"
+                    value={deckDescription}
+                    onChange={(e) => setDeckDescription(e.target.value)}
+                  />
+                </div>
+                <Button type="submit" disabled={!deckTitle.trim() || creatingDeck}>
+                  {creatingDeck ? "Creating…" : "Create Deck"}
+                </Button>
+              </form>
+            ) : (
+              <form onSubmit={handleCreateFolderSubmit} className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="folder-title">Title</Label>
+                  <Input
+                    id="folder-title"
+                    placeholder="e.g. Languages"
+                    value={folderTitle}
+                    onChange={(e) => setFolderTitle(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="folder-desc">Description (optional)</Label>
+                  <Input
+                    id="folder-desc"
+                    placeholder="Optional description"
+                    value={folderDescription}
+                    onChange={(e) => setFolderDescription(e.target.value)}
+                  />
+                </div>
+                <Button type="submit" disabled={!folderTitle.trim() || creatingFolder}>
+                  {creatingFolder ? "Creating…" : "Create Folder"}
+                </Button>
+              </form>
+            )}
           </Drawer.Content>
         </Drawer.Portal>
       </Drawer.Root>
-    </div>
+    </View>
   );
 }
 
