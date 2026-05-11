@@ -94,6 +94,8 @@ const LoginContent = () => {
     await login(data.email, data.password);
   };
 
+  const isDisabled = isLoading || !data.email || !data.password;
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
@@ -122,7 +124,7 @@ const LoginContent = () => {
         />
       </div>
 
-      <Button disabled={isLoading || !data.email || !data.password} type="submit">
+      <Button disabled={isDisabled} type="submit">
         LOG IN
       </Button>
 
@@ -165,6 +167,8 @@ const SignUpContent = () => {
     await register(name, password, email);
   };
 
+  const isDisabled = isLoading || !data.name || !data.email || !data.password;
+
   return (
     <div>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -199,7 +203,7 @@ const SignUpContent = () => {
           />
         </div>
 
-        <Button disabled={isLoading || !data.name || !data.email || !data.password} type="submit">
+        <Button disabled={isDisabled} type="submit">
           SIGN UP
         </Button>
 
