@@ -122,7 +122,7 @@ const LoginContent = () => {
         />
       </div>
 
-      <Button disabled={isLoading} type="submit">
+      <Button disabled={isLoading || !data.email || !data.password} type="submit">
         LOG IN
       </Button>
 
@@ -199,7 +199,7 @@ const SignUpContent = () => {
           />
         </div>
 
-        <Button disabled={isLoading} type="submit">
+        <Button disabled={isLoading || !data.name || !data.email || !data.password} type="submit">
           SIGN UP
         </Button>
 
