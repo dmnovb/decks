@@ -23,10 +23,6 @@ export async function validateOptionalFolder(folderId: unknown, userId: string) 
   return null;
 }
 
-export async function isOptionalOwnedFolder(folderId: unknown, userId: string) {
-  return (await validateOptionalFolder(folderId, userId)) === null;
-}
-
 export async function getOwnedOptionalFolderId(folderId: unknown, userId: string) {
   const validation = await validateOptionalFolder(folderId, userId);
   if (validation) {
@@ -34,13 +30,4 @@ export async function getOwnedOptionalFolderId(folderId: unknown, userId: string
   }
 
   return typeof folderId === "string" && folderId.length > 0 ? folderId : null;
-}
-
-export async function isOwnedDeck(deckId: string, userId: string) {
-  const deck = await prisma.deck.findFirst({
-    where: { id: deckId, userId },
-    select: { id: true },
-  });
-
-  return deck !== null;
 }
