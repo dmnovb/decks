@@ -24,6 +24,12 @@ A modern, intelligent flashcard application built with Next.js and powered by sp
 - **State Management**: SWR for data fetching and caching
 - **AI Integration**: Automated flashcard generation from text input
 
+## Analytics
+
+Umami analytics is enabled when `NEXT_PUBLIC_UMAMI_WEBSITE_ID` is configured.
+By default the app loads `https://cloud.umami.is/script.js`; set
+`NEXT_PUBLIC_UMAMI_SCRIPT_URL` to use a self-hosted Umami instance.
+
 ## Learning Algorithm
 
 The app will use the proven SM-2 spaced repetition algorithm to:
