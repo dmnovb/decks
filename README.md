@@ -26,9 +26,10 @@ A modern, intelligent flashcard application built with Next.js and powered by sp
 
 ## Analytics
 
-Umami analytics is enabled when `NEXT_PUBLIC_UMAMI_WEBSITE_ID` is configured.
-By default the app loads `https://cloud.umami.is/script.js`; set
-`NEXT_PUBLIC_UMAMI_SCRIPT_URL` to use a self-hosted Umami instance.
+Umami analytics is configured with the production website ID by default.
+Set `NEXT_PUBLIC_UMAMI_WEBSITE_ID` to override it, or
+`NEXT_PUBLIC_UMAMI_SCRIPT_URL` to use a self-hosted Umami instance instead of
+`https://cloud.umami.is/script.js`.
 
 ## Learning Algorithm
 
