@@ -41,9 +41,10 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
   }, []);
 
   const checkAuth = async () => {
-    const userData = localStorage.getItem("user-data");
-    if (userData) {
-      setUser(JSON.parse(userData));
+    const cached = localStorage.getItem("user-data");
+    if (cached) {
+      setUser(JSON.parse(cached));
+      setIsInitializing(false);
     }
 
     try {
@@ -54,12 +55,13 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
+        localStorage.setItem("user-data", JSON.stringify(userData));
       } else {
         setUser(null);
+        localStorage.removeItem("user-data");
       }
-    } catch (error) {
-      console.error("Auth check failed:", error);
-      setUser(null);
+    } catch {
+      // Keep cached user on network error — don't log out on flaky connections
     } finally {
       setIsInitializing(false);
     }

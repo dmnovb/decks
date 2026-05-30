@@ -1,12 +1,6 @@
 "use client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth } from "@/providers/auth-provider";
 import { Layers } from "lucide-react";
-import { ChangeEvent, FormEvent, useState } from "react";
-import { FaGoogle, FaGithub } from "react-icons/fa";
 import { LoginContent } from "./LoginContent/LoginContent";
 import { SignUpContent } from "./SignUpContent/SignUpContent";
 

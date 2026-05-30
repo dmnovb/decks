@@ -1,0 +1,1 @@
+export { default as Subtitle } from "./header/subTitle/SubTitle";

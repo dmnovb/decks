@@ -9,7 +9,8 @@ const tools: Anthropic.Tool[] = [
   {
     type: "custom" as const,
     name: "create_deck",
-    description: "Creates a new flashcard deck for the user, optionally inside a folder.",
+    description:
+      "Creates a new flashcard deck for the user, optionally inside a folder.",
     input_schema: {
       type: "object",
       properties: {
@@ -20,7 +21,8 @@ const tools: Anthropic.Tool[] = [
         },
         category: {
           type: "string",
-          description: 'The category or subject (e.g., "Spanish", "Japanese", "Korean")',
+          description:
+            'The category or subject (e.g., "Spanish", "Japanese", "Korean")',
         },
         folderId: {
           type: "string",
@@ -38,16 +40,28 @@ const tools: Anthropic.Tool[] = [
     input_schema: {
       type: "object",
       properties: {
-        deckId: { type: "string", description: "The ID of the deck to add flashcards to" },
+        deckId: {
+          type: "string",
+          description: "The ID of the deck to add flashcards to",
+        },
         flashcards: {
           type: "array",
           description: "Array of flashcard objects to create",
           items: {
             type: "object",
             properties: {
-              front: { type: "string", description: "The front of the card (question/prompt)" },
-              back: { type: "string", description: "The back of the card (answer)" },
-              notes: { type: "string", description: "Optional notes or additional information" },
+              front: {
+                type: "string",
+                description: "The front of the card (question/prompt)",
+              },
+              back: {
+                type: "string",
+                description: "The back of the card (answer)",
+              },
+              notes: {
+                type: "string",
+                description: "Optional notes or additional information",
+              },
             },
             required: ["front", "back"],
           },
@@ -65,9 +79,15 @@ const tools: Anthropic.Tool[] = [
       type: "object",
       properties: {
         title: { type: "string", description: "The title of the deck" },
-        description: { type: "string", description: "A brief description of the deck" },
+        description: {
+          type: "string",
+          description: "A brief description of the deck",
+        },
         category: { type: "string", description: "The category or subject" },
-        folderId: { type: "string", description: "The ID of a folder to place the deck in (optional)" },
+        folderId: {
+          type: "string",
+          description: "The ID of a folder to place the deck in (optional)",
+        },
         flashcards: {
           type: "array",
           description: "Array of flashcards to create",
@@ -100,7 +120,10 @@ const tools: Anthropic.Tool[] = [
     input_schema: {
       type: "object",
       properties: {
-        deckId: { type: "string", description: "The ID of the deck to list flashcards from" },
+        deckId: {
+          type: "string",
+          description: "The ID of the deck to list flashcards from",
+        },
       },
       required: ["deckId"],
     },
@@ -114,10 +137,14 @@ const tools: Anthropic.Tool[] = [
       type: "object",
       properties: {
         title: { type: "string", description: "The name of the folder" },
-        description: { type: "string", description: "A brief description of the folder" },
+        description: {
+          type: "string",
+          description: "A brief description of the folder",
+        },
         parentId: {
           type: "string",
-          description: "The ID of a parent folder to nest this folder inside (optional)",
+          description:
+            "The ID of a parent folder to nest this folder inside (optional)",
         },
       },
       required: ["title"],
@@ -141,7 +168,8 @@ const tools: Anthropic.Tool[] = [
         deckId: { type: "string", description: "The ID of the deck to move" },
         folderId: {
           type: ["string", "null"],
-          description: "The ID of the folder to move the deck into, or null for top level",
+          description:
+            "The ID of the folder to move the deck into, or null for top level",
         },
       },
       required: ["deckId", "folderId"],
@@ -149,11 +177,21 @@ const tools: Anthropic.Tool[] = [
   },
 ];
 
-async function executeFunctions(functionName: string, args: any, userId: string) {
+async function executeFunctions(
+  functionName: string,
+  args: any,
+  userId: string,
+) {
   switch (functionName) {
     case "create_deck": {
       const deck = await prisma.deck.create({
-        data: { title: args.title, description: args.description, category: args.category, folderId: args.folderId, userId },
+        data: {
+          title: args.title,
+          description: args.description,
+          category: args.category,
+          folderId: args.folderId,
+          userId,
+        },
       });
       return {
         success: true,
@@ -162,10 +200,16 @@ async function executeFunctions(functionName: string, args: any, userId: string)
       };
     }
     case "create_flashcards": {
-      const ownedDeck = await prisma.deck.findFirst({ where: { id: args.deckId, userId } });
-      if (!ownedDeck) return { success: false, error: "Deck not found or access denied" };
+      const ownedDeck = await prisma.deck.findFirst({
+        where: { id: args.deckId, userId },
+      });
+      if (!ownedDeck)
+        return { success: false, error: "Deck not found or access denied" };
       const flashcards = await prisma.flashcard.createMany({
-        data: args.flashcards.map((card: any) => ({ ...card, deckId: args.deckId })),
+        data: args.flashcards.map((card: any) => ({
+          ...card,
+          deckId: args.deckId,
+        })),
       });
       return {
         success: true,
@@ -210,9 +254,17 @@ async function executeFunctions(functionName: string, args: any, userId: string)
       };
     }
     case "list_user_flashcards_in_deck": {
-      const deck = await prisma.deck.findFirst({ where: { id: args.deckId, userId } });
-      if (!deck) return { success: false, error: "Deck not found or you do not have access to it" };
-      const flashcards = await prisma.flashcard.findMany({ where: { deckId: args.deckId } });
+      const deck = await prisma.deck.findFirst({
+        where: { id: args.deckId, userId },
+      });
+      if (!deck)
+        return {
+          success: false,
+          error: "Deck not found or you do not have access to it",
+        };
+      const flashcards = await prisma.flashcard.findMany({
+        where: { deckId: args.deckId },
+      });
       return {
         success: true,
         deckTitle: deck.title,
@@ -260,11 +312,17 @@ async function executeFunctions(functionName: string, args: any, userId: string)
       };
     }
     case "move_deck_to_folder": {
-      const ownedDeck = await prisma.deck.findFirst({ where: { id: args.deckId, userId } });
-      if (!ownedDeck) return { success: false, error: "Deck not found or access denied" };
+      const ownedDeck = await prisma.deck.findFirst({
+        where: { id: args.deckId, userId },
+      });
+      if (!ownedDeck)
+        return { success: false, error: "Deck not found or access denied" };
       if (args.folderId) {
-        const folder = await prisma.folder.findFirst({ where: { id: args.folderId, userId } });
-        if (!folder) return { success: false, error: "Folder not found or access denied" };
+        const folder = await prisma.folder.findFirst({
+          where: { id: args.folderId, userId },
+        });
+        if (!folder)
+          return { success: false, error: "Folder not found or access denied" };
       }
       await prisma.deck.update({
         where: { id: args.deckId },
@@ -286,12 +344,18 @@ export async function POST(request: NextRequest) {
   try {
     const token = request.cookies.get("auth-token")?.value;
     if (!token) {
-      return Response.json({ success: false, error: "Authentication required" }, { status: 401 });
+      return Response.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 },
+      );
     }
 
     const payload = verifyToken(token) as { userId: string } | null;
     if (!payload) {
-      return Response.json({ success: false, error: "Invalid token" }, { status: 401 });
+      return Response.json(
+        { success: false, error: "Invalid token" },
+        { status: 401 },
+      );
     }
 
     const userId = payload.userId;
@@ -301,7 +365,10 @@ export async function POST(request: NextRequest) {
     const maxTokens = 8192;
 
     if (!message) {
-      return Response.json({ success: false, error: "Message is required" }, { status: 400 });
+      return Response.json(
+        { success: false, error: "Message is required" },
+        { status: 400 },
+      );
     }
 
     const messages: Anthropic.MessageParam[] = [
@@ -347,7 +414,10 @@ ${process.env.AI_SYSTEM_PROMPT_ACE!}`;
           toolResults.push({
             type: "tool_result",
             tool_use_id: call.id,
-            content: JSON.stringify({ success: false, error: (error as Error).message }),
+            content: JSON.stringify({
+              success: false,
+              error: (error as Error).message,
+            }),
           });
         }
       }
@@ -365,7 +435,8 @@ ${process.env.AI_SYSTEM_PROMPT_ACE!}`;
     }
 
     const text =
-      response.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text ?? "";
+      response.content.find((b): b is Anthropic.TextBlock => b.type === "text")
+        ?.text ?? "";
 
     return Response.json({
       success: true,
@@ -375,6 +446,9 @@ ${process.env.AI_SYSTEM_PROMPT_ACE!}`;
     });
   } catch (error) {
     console.error("Agent API Error:", error);
-    return Response.json({ success: false, error: "Failed to process request" }, { status: 500 });
+    return Response.json(
+      { success: false, error: "Failed to process request" },
+      { status: 500 },
+    );
   }
 }

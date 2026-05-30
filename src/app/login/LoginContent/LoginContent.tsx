@@ -22,6 +22,8 @@ export const LoginContent = () => {
         await login(data.email, data.password);
     };
 
+    const isDisabled = isLoading || !data.email || !data.password;
+
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
@@ -50,7 +52,7 @@ export const LoginContent = () => {
                 />
             </div>
 
-            <Button disabled={isLoading} type="submit">
+            <Button disabled={isDisabled} type="submit">
                 LOG IN
             </Button>
 

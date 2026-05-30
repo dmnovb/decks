@@ -5,10 +5,10 @@ import { useFolders } from "@/providers/folders-provider";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, FormEvent } from "react";
 import { Flashcard } from "@/generated/prisma";
+import { Deck } from "@/types/deck";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Plus,
-  Flame,
   ChevronRight,
   FolderIcon,
   FolderOpen,
@@ -21,17 +21,20 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import useCreateFolder from "@/hooks/use-create-folder";
 import { Folder } from "@/types/deck";
-import { useIsMobile } from "@/hooks/use-mobile";
+import View from "@/components/view";
+import { Subtitle } from "@/app/home";
 
 export default function Home() {
   return <DeckGrid />;
 }
 
-// ── Types ──────────────────────────────────────────────────────────────────
-
-type Deck = ReturnType<typeof useDecks>["state"]["decks"][0];
-
-// ── Folder section ─────────────────────────────────────────────────────────
+interface Props {
+  folder: Folder;
+  decks: Deck[];
+  isExpanded: boolean;
+  onToggle: () => void;
+  onDeckClick: (id: string) => void;
+}
 
 function FolderSection({
   folder,
@@ -39,13 +42,7 @@ function FolderSection({
   isExpanded,
   onToggle,
   onDeckClick,
-}: {
-  folder: Folder;
-  decks: Deck[];
-  isExpanded: boolean;
-  onToggle: () => void;
-  onDeckClick: (id: string) => void;
-}) {
+}: Props) {
   return (
     <div>
       <button
@@ -117,21 +114,9 @@ function DeckGrid() {
   const { state: foldersState, isLoading: foldersLoading } = useFolders();
   const { handleCreate: handleCreateFolder } = useCreateFolder();
   const router = useRouter();
-  const isMobile = useIsMobile();
 
   const { decks } = state;
   const { folders } = foldersState;
-
-  const globalStats = useMemo(() => {
-    const allCards = decks.flatMap((d) => d.flashcards || []);
-    const now = new Date();
-    const due = allCards.filter(
-      (c) => c.nextReview && new Date(c.nextReview) <= now,
-    ).length;
-    const isNew = allCards.filter((c) => c.totalReviews === 0).length;
-    const maxStreak = Math.max(0, ...allCards.map((c) => c.streak));
-    return { due, new: isNew, maxStreak, total: allCards.length };
-  }, [decks]);
 
   // Create drawer (mobile FAB)
   const [createOpen, setCreateOpen] = useState(false);
@@ -197,78 +182,46 @@ function DeckGrid() {
   const isEmpty = !isLoading && decks.length === 0 && folders.length === 0;
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 sm:px-8 sm:py-5 border-b border-border">
-        <div>
-          <h1 className="text-sm font-semibold text-foreground">Your Library</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {decks.length} {decks.length === 1 ? "deck" : "decks"}
-            {folders.length > 0 && ` · ${folders.length} ${folders.length === 1 ? "folder" : "folders"}`}
-            {globalStats.total > 0 && ` · ${globalStats.total} cards`}
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          {globalStats.due > 0 && (
-            <span className="text-xs text-muted-foreground">
-              <span className="text-foreground font-medium">{globalStats.due}</span> due
-            </span>
-          )}
-          {globalStats.maxStreak > 0 && (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Flame size={12} className="text-warning" />
-              <span className="text-foreground font-medium">{globalStats.maxStreak}</span>
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-8">
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-44 rounded-lg bg-background-2 animate-pulse" />
-            ))}
-          </div>
-        ) : isEmpty ? (
+    <>
+      <View title="Your Library" subTitle={<Subtitle />} isLoading={isLoading}>
+        {isEmpty ? (
           <EmptyState onCreateDeck={() => openCreate("deck")} />
         ) : (
-          <div className="space-y-6">
-            {isMobile && rootFolders.length > 0 && (
-              <div className="space-y-2">
-                {rootFolders.map((folder) => (
-                  <FolderSection
-                    key={folder.id}
-                    folder={folder}
-                    decks={decks.filter((d) => d.folderId === folder.id)}
-                    isExpanded={expandedFolders.has(folder.id)}
-                    onToggle={() => toggleFolder(folder.id)}
-                    onDeckClick={(id) => router.push(`/decks/${id}`)}
+          <div className="flex flex-col gap-3">
+            {rootFolders.map((folder) => {
+              const folderDecks = decks.filter((d) => d.folderId === folder.id);
+              return (
+                <FolderSection
+                  key={folder.id}
+                  folder={folder}
+                  decks={folderDecks}
+                  isExpanded={expandedFolders.has(folder.id!)}
+                  onToggle={() => toggleFolder(folder.id!)}
+                  onDeckClick={(id) => router.push(`/decks/${id}`)}
+                />
+              );
+            })}
+
+            {rootDecks.length > 0 && (
+              <motion.div
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
+                initial="hidden"
+                animate="visible"
+                variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
+              >
+                {rootDecks.map((deck) => (
+                  <DeckCard
+                    key={deck.id}
+                    deck={deck}
+                    onClick={() => router.push(`/decks/${deck.id}`)}
                   />
                 ))}
-              </div>
+              </motion.div>
             )}
-
-            <motion.div
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-              initial="hidden"
-              animate="visible"
-              variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
-            >
-              {rootDecks.map((deck) => (
-                <DeckCard
-                  key={deck.id}
-                  deck={deck}
-                  onClick={() => router.push(`/decks/${deck.id}`)}
-                />
-              ))}
-            </motion.div>
           </div>
         )}
-      </div>
+      </View>
 
-      {/* ── Mobile FAB ──────────────────────────────────────────────────── */}
       <button
         onClick={() => openCreate("deck")}
         className={cn(
@@ -283,7 +236,6 @@ function DeckGrid() {
         <Plus size={20} strokeWidth={2.5} />
       </button>
 
-      {/* ── Create drawer (triggered by FAB — mobile only) ──────────────── */}
       <Drawer.Root
         open={createOpen}
         onOpenChange={setCreateOpen}
@@ -299,18 +251,15 @@ function DeckGrid() {
               className="flex flex-col overflow-hidden rounded-t-[24px] bg-background border-t border-x border-border/40"
               style={{ boxShadow: "0 -8px 40px rgba(0,0,0,0.5)" }}
             >
-              {/* Handle */}
               <div className="flex justify-center pt-3 pb-1 shrink-0">
                 <div className="w-9 h-[3px] rounded-full bg-muted-foreground/20" />
               </div>
 
-              {/* Scrollable body */}
               <div className="overflow-y-auto overscroll-contain px-5 pb-3">
                 <Drawer.Title className="text-sm font-semibold text-foreground pt-2 pb-5">
                   Create new
                 </Drawer.Title>
 
-                {/* Type toggle */}
                 <div className="grid grid-cols-2 gap-1.5 mb-5 p-1 bg-background-2 rounded-xl border border-border/50">
                   {(["deck", "folder"] as const).map((type) => (
                     <button
@@ -329,11 +278,12 @@ function DeckGrid() {
                   ))}
                 </div>
 
-                {/* Deck form */}
                 {createType === "deck" && (
                   <form onSubmit={handleCreateDeck} className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground/70 uppercase tracking-widest">Title</Label>
+                      <Label className="text-xs text-muted-foreground/70 uppercase tracking-widest">
+                        Title
+                      </Label>
                       <Input
                         placeholder="e.g. Spanish Basics"
                         value={deckTitle}
@@ -343,7 +293,10 @@ function DeckGrid() {
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground/70 uppercase tracking-widest">
-                        Description <span className="normal-case font-normal text-muted-foreground/50">(optional)</span>
+                        Description{" "}
+                        <span className="normal-case font-normal text-muted-foreground/50">
+                          (optional)
+                        </span>
                       </Label>
                       <Input
                         placeholder="What's this deck for?"
@@ -353,7 +306,9 @@ function DeckGrid() {
                     </div>
                     <div
                       className="pt-2 pb-3"
-                      style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+                      style={{
+                        paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
+                      }}
                     >
                       <Button
                         type="submit"
@@ -366,11 +321,12 @@ function DeckGrid() {
                   </form>
                 )}
 
-                {/* Folder form */}
                 {createType === "folder" && (
                   <form onSubmit={handleCreateFolderSubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground/70 uppercase tracking-widest">Name</Label>
+                      <Label className="text-xs text-muted-foreground/70 uppercase tracking-widest">
+                        Name
+                      </Label>
                       <Input
                         placeholder="e.g. Japanese"
                         value={folderTitle}
@@ -380,7 +336,10 @@ function DeckGrid() {
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground/70 uppercase tracking-widest">
-                        Description <span className="normal-case font-normal text-muted-foreground/50">(optional)</span>
+                        Description{" "}
+                        <span className="normal-case font-normal text-muted-foreground/50">
+                          (optional)
+                        </span>
                       </Label>
                       <Input
                         placeholder="What's in this folder?"
@@ -390,7 +349,9 @@ function DeckGrid() {
                     </div>
                     <div
                       className="pt-2"
-                      style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+                      style={{
+                        paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
+                      }}
                     >
                       <Button
                         type="submit"
@@ -407,7 +368,7 @@ function DeckGrid() {
           </Drawer.Content>
         </Drawer.Portal>
       </Drawer.Root>
-    </div>
+    </>
   );
 }
 
