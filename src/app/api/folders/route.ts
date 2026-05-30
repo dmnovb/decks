@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
+import { validateOptionalFolder } from "@/lib/ownership";
 import { NextRequest } from "next/server";
 
 function getAuthenticatedUserId(request: NextRequest): string | null {
@@ -36,15 +37,19 @@ export async function POST(request: NextRequest) {
   try {
     const { title, description, tags, parentId } = await request.json();
 
-    if (parentId) {
-      const parentFolder = await prisma.folder.findFirst({ where: { id: parentId, userId } });
-      if (!parentFolder) {
-        return new Response("Parent folder not found", { status: 404 });
-      }
+    if (!title || typeof title !== "string") {
+      return new Response("Folder title is required", { status: 400 });
+    }
+
+    const parentValidation = await validateOptionalFolder(parentId, userId);
+    if (parentValidation) {
+      return new Response(parentValidation.error.replace("Folder", "Parent folder"), {
+        status: parentValidation.status,
+      });
     }
 
     const folder = await prisma.folder.create({
-      data: { title, description, tags: tags || [], parentId, userId },
+      data: { title, description, tags: tags || [], parentId: parentId || null, userId },
     });
 
     return new Response(JSON.stringify(folder), { status: 201 });
@@ -58,25 +63,24 @@ async function cascadeDeleteFolder(folderId: string, userId: string) {
   // Fetch children and decks in parallel — both only depend on folderId
   const [childFolders, decks] = await Promise.all([
     prisma.folder.findMany({ where: { parentId: folderId, userId } }),
-    prisma.deck.findMany({ where: { folderId } }),
+    prisma.deck.findMany({ where: { folderId, userId } }),
   ]);
 
   // Recurse into all children in parallel
   await Promise.all(childFolders.map((child) => cascadeDeleteFolder(child.id, userId)));
 
-  // Delete all deck-related data in parallel (per-deck operations are independent)
   await Promise.all(
     decks.map((deck) =>
-      Promise.all([
+      prisma.$transaction([
         prisma.cardReview.deleteMany({ where: { session: { deckId: deck.id } } }),
         prisma.studySession.deleteMany({ where: { deckId: deck.id } }),
         prisma.flashcard.deleteMany({ where: { deckId: deck.id } }),
-      ])
-    )
+        prisma.deck.delete({ where: { id: deck.id } }),
+      ]),
+    ),
   );
 
   // Final cleanup — must be sequential (FK constraints)
-  await prisma.deck.deleteMany({ where: { folderId } });
   await prisma.folder.delete({ where: { id: folderId } });
 }
 
@@ -104,7 +108,7 @@ export async function DELETE(request: NextRequest) {
       // Orphan children and decks in parallel, then delete
       await Promise.all([
         prisma.folder.updateMany({ where: { parentId: id, userId }, data: { parentId: null } }),
-        prisma.deck.updateMany({ where: { folderId: id }, data: { folderId: null } }),
+        prisma.deck.updateMany({ where: { folderId: id, userId }, data: { folderId: null } }),
       ]);
       await prisma.folder.delete({ where: { id } });
     }
@@ -134,14 +138,30 @@ export async function PATCH(request: NextRequest) {
       return new Response("Folder not found", { status: 404 });
     }
 
+    const normalizedParentId =
+      parentId === undefined || parentId === null || parentId === "" ? null : parentId;
+    if (normalizedParentId && typeof normalizedParentId !== "string") {
+      return new Response("Parent folder ID must be a string", { status: 400 });
+    }
+
+    const parentFolder = normalizedParentId
+      ? await prisma.folder.findFirst({
+          where: { id: normalizedParentId, userId },
+          select: { id: true, parentId: true },
+        })
+      : null;
+    if (normalizedParentId && !parentFolder) {
+      return new Response("Parent folder not found", { status: 404 });
+    }
+
     // Cycle detection when changing parent
-    if (parentId !== undefined && parentId !== folder.parentId) {
-      if (parentId === id) {
+    if (parentId !== undefined && normalizedParentId !== folder.parentId) {
+      if (normalizedParentId === id) {
         return new Response("A folder cannot be its own parent", { status: 400 });
       }
 
-      if (parentId) {
-        let current = await prisma.folder.findFirst({ where: { id: parentId, userId } });
+      if (parentFolder) {
+        let current: typeof parentFolder | null = parentFolder;
         while (current?.parentId) {
           if (current.parentId === id) {
             return new Response("Cannot move folder into its own descendant", { status: 400 });
@@ -157,7 +177,7 @@ export async function PATCH(request: NextRequest) {
         ...(title !== undefined && { title }),
         ...(description !== undefined && { description }),
         ...(tags !== undefined && { tags }),
-        ...(parentId !== undefined && { parentId }),
+        ...(parentId !== undefined && { parentId: normalizedParentId }),
       },
     });
 

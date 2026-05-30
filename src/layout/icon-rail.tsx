@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, MessageSquare, BarChart2 } from "lucide-react";
+import { Home, MessageSquare, BarChart2, Coins } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ const navItems = [
   { href: "/", icon: Home, label: "Home" },
   { href: "/chat", icon: MessageSquare, label: "Chat" },
   { href: "/stats", icon: BarChart2, label: "Stats" },
+  { href: "/pricing", icon: Coins, label: "Credits" },
 ];
 
 export function IconRail() {

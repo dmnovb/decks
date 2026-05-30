@@ -107,7 +107,10 @@ export async function DELETE(request: NextRequest) {
       return new Response("Flashcard not found in this deck", { status: 404 });
     }
 
-    await prisma.flashcard.delete({ where: { id } });
+    await prisma.$transaction([
+      prisma.cardReview.deleteMany({ where: { flashcardId: id } }),
+      prisma.flashcard.delete({ where: { id } }),
+    ]);
 
     return new Response("Flashcard deleted!", { status: 200 });
   } catch (error) {
@@ -123,19 +126,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const {
-      id,
-      deckId,
-      difficulty,
-      interval,
-      repetitions,
-      easeFactor,
-      lastReviewed,
-      nextReview,
-      streak,
-      totalReviews,
-      correctReviews,
-    } = await request.json();
+    const { id, deckId, front, back, notes } = await request.json();
 
     if (!id || !deckId) {
       return new Response("Flashcard ID and Deck ID are required", { status: 400 });
@@ -145,19 +136,33 @@ export async function PATCH(request: NextRequest) {
       return new Response("Deck not found", { status: 404 });
     }
 
+    const updateData: { front?: string; back?: string; notes?: string | null } = {};
+    if (front !== undefined) {
+      if (typeof front !== "string" || front.trim() === "") {
+        return new Response("Front must be a non-empty string", { status: 400 });
+      }
+      updateData.front = front;
+    }
+    if (back !== undefined) {
+      if (typeof back !== "string" || back.trim() === "") {
+        return new Response("Back must be a non-empty string", { status: 400 });
+      }
+      updateData.back = back;
+    }
+    if (notes !== undefined) {
+      if (notes !== null && typeof notes !== "string") {
+        return new Response("Notes must be a string or null", { status: 400 });
+      }
+      updateData.notes = notes;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return new Response("No editable flashcard fields provided", { status: 400 });
+    }
+
     const flashcard = await prisma.flashcard.update({
       where: { id, deckId },
-      data: {
-        difficulty,
-        interval,
-        repetitions,
-        easeFactor,
-        lastReviewed,
-        nextReview,
-        streak,
-        totalReviews,
-        correctReviews,
-      },
+      data: updateData,
     });
 
     return new Response(JSON.stringify(flashcard), { status: 200 });

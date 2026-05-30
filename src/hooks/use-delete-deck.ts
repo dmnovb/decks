@@ -13,7 +13,11 @@ const useDeleteDeck = () => {
     try {
       await fetch("/api/decks", {
         method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ id }),
+      }).then((res) => {
+        if (!res.ok) throw new Error("Failed to delete deck");
       });
 
       dispatch({ type: "DELETE", id });
@@ -21,6 +25,7 @@ const useDeleteDeck = () => {
       toast.success("Deck deleted.");
     } catch (error) {
       setError(error);
+      toast.error("Failed to delete deck.");
     } finally {
       setIsLoading(false);
     }

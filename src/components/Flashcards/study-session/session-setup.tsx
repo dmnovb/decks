@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 interface SessionSetupProps {
   isOpen: boolean;
   onClose: () => void;
-  onStart: (config: SessionConfig) => void;
+  onStart: (config: SessionConfig) => void | Promise<void>;
   allCards: Flashcard[];
 }
 
@@ -72,13 +72,23 @@ export function SessionSetup({
     (c) => !isCardNew(c) && (dueOnly ? isCardDue(c) : true),
   );
 
-  const estimatedNew    = Math.min(maxNewCards ?? newCards.length, newCards.length);
-  const estimatedReview = Math.min((maxCards ?? allCards.length) - estimatedNew, reviewCards.length);
-  const estimatedTotal  = estimatedNew + estimatedReview;
+  const [isStarting, setIsStarting] = useState(false);
 
-  const handleStart = () => {
-    onStart({ maxCards, maxNewCards, dueOnly, shuffled, sortBy: shuffled ? "random" : "dueDate" });
-    onClose();
+  const cardLimit = maxCards ?? allCards.length;
+  const estimatedNew = Math.min(maxNewCards ?? newCards.length, newCards.length, cardLimit);
+  const estimatedReview = Math.min(Math.max(cardLimit - estimatedNew, 0), reviewCards.length);
+  const estimatedTotal = estimatedNew + estimatedReview;
+
+  const handleStart = async () => {
+    setIsStarting(true);
+    try {
+      await onStart({ maxCards, maxNewCards, dueOnly, shuffled, sortBy: shuffled ? "random" : "dueDate" });
+      onClose();
+    } catch {
+      // startSession already reports the failure; keep the setup open so the user can retry.
+    } finally {
+      setIsStarting(false);
+    }
   };
 
   const body = (
@@ -138,10 +148,10 @@ export function SessionSetup({
   const cta = (
     <Button
       onClick={handleStart}
-      disabled={estimatedTotal === 0}
+      disabled={estimatedTotal === 0 || isStarting}
       className="w-full h-12 text-sm font-semibold rounded-xl"
     >
-      Start{estimatedTotal > 0 ? ` · ${estimatedTotal} cards` : ""}
+      {isStarting ? "Starting..." : `Start${estimatedTotal > 0 ? ` · ${estimatedTotal} cards` : ""}`}
     </Button>
   );
 

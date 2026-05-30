@@ -19,6 +19,7 @@ import {
   Home,
   MessageSquare,
   BarChart2,
+  Coins,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -526,6 +527,7 @@ export function NavPanel() {
             { href: "/", icon: Home, label: "Home" },
             { href: "/chat", icon: MessageSquare, label: "Chat" },
             { href: "/stats", icon: BarChart2, label: "Stats" },
+            { href: "/pricing", icon: Coins, label: "Credits" },
           ].map(({ href, icon: Icon, label }) => {
             const isActive =
               href === "/" ? pathname === "/" : pathname.startsWith(href);

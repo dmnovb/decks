@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
+import { validateOptionalFolder } from "@/lib/ownership";
 import { NextRequest } from "next/server";
 
 function getAuthenticatedUserId(request: NextRequest): string | null {
@@ -36,12 +37,22 @@ export async function POST(request: NextRequest) {
   try {
     const { title, description, folderId } = await request.json();
 
+    if (!title || typeof title !== "string") {
+      return new Response("Deck title is required", { status: 400 });
+    }
+
+    const folderValidation = await validateOptionalFolder(folderId, userId);
+    if (folderValidation) {
+      return new Response(folderValidation.error, { status: folderValidation.status });
+    }
+
+    const ownedFolderId = typeof folderId === "string" && folderId.length > 0 ? folderId : null;
     const deck = await prisma.deck.create({
-      data: { title, description, folderId, userId },
+      data: { title, description, folderId: ownedFolderId, userId },
     });
 
     return new Response(JSON.stringify(deck), { status: 201 });
-  } catch (error) {
+  } catch {
     return new Response("Internal Server Error", { status: 500 });
   }
 }
@@ -59,22 +70,21 @@ export async function PATCH(request: NextRequest) {
       return new Response("Deck ID is required", { status: 400 });
     }
 
-    // Validate deck and folder in parallel when both needed
-    const [deck, folder] = await Promise.all([
+    const [deck, folderValidation] = await Promise.all([
       prisma.deck.findFirst({ where: { id, userId } }),
-      folderId ? prisma.folder.findFirst({ where: { id: folderId, userId } }) : null,
+      validateOptionalFolder(folderId, userId),
     ]);
     if (!deck) {
       return new Response("Deck not found", { status: 404 });
     }
-    if (folderId && !folder) {
-      return new Response("Folder not found", { status: 404 });
+    if (folderValidation) {
+      return new Response(folderValidation.error, { status: folderValidation.status });
     }
 
     const updated = await prisma.deck.update({
       where: { id },
       data: {
-        ...(folderId !== undefined && { folderId: folderId ?? null }),
+        ...(folderId !== undefined && { folderId: folderId || null }),
         ...(title !== undefined && { title }),
         ...(description !== undefined && { description }),
       },
@@ -105,8 +115,12 @@ export async function DELETE(request: NextRequest) {
       return new Response("Deck not found", { status: 404 });
     }
 
-    await prisma.flashcard.deleteMany({ where: { deckId: id } });
-    await prisma.deck.delete({ where: { id } });
+    await prisma.$transaction([
+      prisma.cardReview.deleteMany({ where: { flashcard: { deckId: id } } }),
+      prisma.studySession.deleteMany({ where: { deckId: id } }),
+      prisma.flashcard.deleteMany({ where: { deckId: id } }),
+      prisma.deck.delete({ where: { id } }),
+    ]);
 
     return new Response("Deck deleted!", { status: 200 });
   } catch (error) {

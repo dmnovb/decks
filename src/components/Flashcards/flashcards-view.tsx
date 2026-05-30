@@ -12,7 +12,6 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { X, Clock, Target, TrendingUp } from "lucide-react";
 import { SessionConfig } from "@/utils/card-filters";
-import { toast } from "sonner";
 
 const fetcher = (endpoint: string) => fetch(endpoint).then((r) => r.json());
 
@@ -49,17 +48,13 @@ export function FlashcardsView() {
     elapsedTime,
   } = useStudySession();
 
-
   // Keyboard shortcuts
   useEffect(() => {
     if (!sessionState.isActive || !currentCard) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if user is typing in an input
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
 
@@ -67,30 +62,30 @@ export function FlashcardsView() {
         case " ":
         case "Spacebar":
           e.preventDefault();
-          if (!sessionState.showBack) {
+          if (!sessionState.showBack && !isLoading) {
             flipCard();
           }
           break;
         case "1":
           e.preventDefault();
-          if (sessionState.showBack) rateCard(0); // Again
+          if (sessionState.showBack && !isLoading) rateCard(0); // Again
           break;
         case "2":
           e.preventDefault();
-          if (sessionState.showBack) rateCard(2); // Hard
+          if (sessionState.showBack && !isLoading) rateCard(2); // Hard
           break;
         case "3":
         case "Enter":
           e.preventDefault();
-          if (sessionState.showBack) rateCard(4); // Good
+          if (sessionState.showBack && !isLoading) rateCard(4); // Good
           break;
         case "4":
           e.preventDefault();
-          if (sessionState.showBack) rateCard(5); // Easy
+          if (sessionState.showBack && !isLoading) rateCard(5); // Easy
           break;
         case "Escape":
           e.preventDefault();
-          if (confirm("End study session?")) {
+          if (!isLoading && confirm("End study session?")) {
             endSession();
           }
           break;
@@ -99,11 +94,11 @@ export function FlashcardsView() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [sessionState, currentCard, flipCard, rateCard, endSession]);
+  }, [sessionState, currentCard, flipCard, rateCard, endSession, isLoading]);
 
   const handleStartSession = useCallback(
-    (config: SessionConfig) => {
-      startSession(flashcards, config, id as string);
+    async (config: SessionConfig) => {
+      await startSession(flashcards, config, id as string);
     },
     [flashcards, id, startSession],
   );
@@ -130,9 +125,7 @@ export function FlashcardsView() {
   if (flashcards.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <p className="text-muted-foreground text-sm">
-          No flashcards in this deck
-        </p>
+        <p className="text-muted-foreground text-sm">No flashcards in this deck</p>
         <Button variant="outline" onClick={() => window.history.back()}>
           Go Back
         </Button>
@@ -148,21 +141,15 @@ export function FlashcardsView() {
           <h2 className="text-3xl font-bold">Session Complete!</h2>
           <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto pt-8">
             <div className="p-4 bg-muted/30 rounded-lg">
-              <div className="text-2xl font-bold">
-                {sessionState.completedCards}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Cards Reviewed
-              </div>
+              <div className="text-2xl font-bold">{sessionState.completedCards}</div>
+              <div className="text-sm text-muted-foreground">Cards Reviewed</div>
             </div>
             <div className="p-4 bg-muted/30 rounded-lg">
               <div className="text-2xl font-bold">{Math.round(accuracy)}%</div>
               <div className="text-sm text-muted-foreground">Accuracy</div>
             </div>
             <div className="p-4 bg-muted/30 rounded-lg">
-              <div className="text-2xl font-bold">
-                {formatTime(elapsedTime)}
-              </div>
+              <div className="text-2xl font-bold">{formatTime(elapsedTime)}</div>
               <div className="text-sm text-muted-foreground">Time</div>
             </div>
           </div>
@@ -249,7 +236,9 @@ export function FlashcardsView() {
             </div>
 
             <button
-              onClick={() => { if (confirm("End study session?")) endSession(); }}
+              onClick={() => {
+                if (confirm("End study session?")) endSession();
+              }}
               className="p-1.5 rounded-md text-muted-foreground/40 hover:text-muted-foreground active:text-foreground transition-colors"
             >
               <X className="w-4 h-4" />
@@ -275,9 +264,7 @@ export function FlashcardsView() {
   return (
     <>
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <p className="text-muted-foreground text-sm">
-          Ready to start studying?
-        </p>
+        <p className="text-muted-foreground text-sm">Ready to start studying?</p>
         <Button onClick={() => setShowSetup(true)}>Configure Session</Button>
       </div>
 
