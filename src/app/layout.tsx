@@ -5,6 +5,7 @@ import { AuthProvider } from "@/providers";
 import { AuthGuard } from "@/components/auth-guard";
 import { ThemeDock } from "@/components/ui/theme-dock";
 import { Toaster } from "@/components/ui/sonner";
+import { UmamiAnalytics } from "@/components/umami-analytics";
 import { Analytics } from "@vercel/analytics/next";
 
 import "./globals.css";
@@ -58,6 +59,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} antialiased overflow-hidden`}
       >
         <Analytics />
+        <UmamiAnalytics />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
