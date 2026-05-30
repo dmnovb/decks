@@ -19,6 +19,7 @@ import {
   Home,
   MessageSquare,
   BarChart2,
+  MoreHorizontal,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -105,13 +106,38 @@ function DeckRow({
           onClick={() => !isDragging && router.push(`/decks/${deck.id}`)}
         >
           <span className="truncate">{deck.title}</span>
-          <ChevronRight
-            size={12}
-            className={cn(
-              "shrink-0 transition-opacity",
-              isActive ? "opacity-60" : "opacity-0 group-hover:opacity-40",
-            )}
-          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                onClick={(e) => e.stopPropagation()}
+                className={cn(
+                  "shrink-0 flex items-center justify-center w-5 h-5 rounded transition-opacity",
+                  "md:opacity-0 md:group-hover:opacity-60 hover:opacity-100",
+                  isActive ? "opacity-60" : "opacity-60 md:opacity-0",
+                )}
+              >
+                <MoreHorizontal size={12} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              sideOffset={4}
+              className="bg-background-2 border-border w-32"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <DropdownMenuItem onSelect={onEdit} className="cursor-pointer gap-2 text-xs">
+                <Pencil size={12} className="text-muted-foreground" />
+                Rename
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={onDelete}
+                className="text-red-400 focus:text-red-400 cursor-pointer gap-2 text-xs"
+              >
+                <Trash size={12} />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="bg-background-2 border-border">
@@ -199,11 +225,38 @@ function FolderRow({
 
               <span className="truncate flex-1 text-left">{folder.title}</span>
 
-              {hasChildren && (
-                <span className="text-[10px] tabular-nums opacity-0 group-hover:opacity-50 transition-opacity shrink-0">
-                  {childFolders.length + childDecks.length}
-                </span>
-              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <span
+                    role="button"
+                    onClick={(e) => e.stopPropagation()}
+                    className="shrink-0 flex items-center justify-center w-5 h-5 rounded transition-opacity opacity-60 md:opacity-0 md:group-hover:opacity-60 hover:opacity-100"
+                  >
+                    <MoreHorizontal size={12} />
+                  </span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  sideOffset={4}
+                  className="bg-background-2 border-border w-32"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <DropdownMenuItem
+                    onSelect={() => onEdit(folder)}
+                    className="cursor-pointer gap-2 text-xs"
+                  >
+                    <Pencil size={12} className="text-muted-foreground" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => setDeleteDialogOpen(true)}
+                    className="text-red-400 focus:text-red-400 cursor-pointer gap-2 text-xs"
+                  >
+                    <Trash size={12} />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </button>
           </ContextMenuTrigger>
 
