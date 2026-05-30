@@ -16,7 +16,7 @@ export const sm2 = (
         interval = 6;
         break;
       default:
-        interval = Number((previousInterval * previousEaseFactor).toFixed(2));
+        interval = Math.max(1, Math.round(previousInterval * previousEaseFactor));
         break;
     }
 

@@ -13,7 +13,11 @@ const useDeleteCard = () => {
     try {
       await fetch("/api/flashcards", {
         method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ id: flashcardId, deckId }),
+      }).then((res) => {
+        if (!res.ok) throw new Error("Failed to delete card");
       });
 
       dispatch({ type: "DELETE_FLASHCARD", flashcardId, deckId });
@@ -21,6 +25,7 @@ const useDeleteCard = () => {
       toast.success("Card deleted.");
     } catch (error) {
       setError(error);
+      toast.error("Failed to delete card.");
     } finally {
       setIsLoading(false);
     }

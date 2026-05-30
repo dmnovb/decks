@@ -4,6 +4,7 @@ import { tool, jsonSchema } from "ai";
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
+import { getOwnedOptionalFolderId } from "@/lib/ownership";
 
 const anthropic = createAnthropic({ apiKey: process.env.CLAUDE_KEY! });
 
@@ -68,8 +69,14 @@ ${memorySection}`;
           required: ["title"],
         }),
         execute: async (args) => {
+          let folderId: string | null;
+          try {
+            folderId = await getOwnedOptionalFolderId(args.folderId, userId);
+          } catch (error) {
+            return { success: false, error: (error as Error).message };
+          }
           const deck = await prisma.deck.create({
-            data: { title: args.title, description: args.description, category: args.category, folderId: args.folderId, userId },
+            data: { title: args.title, description: args.description, category: args.category, folderId, userId },
           });
           return { success: true, deckId: deck.id, message: `Created deck "${deck.title}"` };
         },
@@ -131,10 +138,16 @@ ${memorySection}`;
           required: ["title", "flashcards"],
         }),
         execute: async (args) => {
+          let folderId: string | null;
+          try {
+            folderId = await getOwnedOptionalFolderId(args.folderId, userId);
+          } catch (error) {
+            return { success: false, error: (error as Error).message };
+          }
           const deck = await prisma.deck.create({
             data: {
               title: args.title, description: args.description, category: args.category,
-              folderId: args.folderId, userId,
+              folderId, userId,
               flashcards: { create: args.flashcards },
             },
             include: { flashcards: true },
@@ -192,8 +205,14 @@ ${memorySection}`;
           required: ["title"],
         }),
         execute: async (args) => {
+          let parentId: string | null;
+          try {
+            parentId = await getOwnedOptionalFolderId(args.parentId, userId);
+          } catch (error) {
+            return { success: false, error: (error as Error).message };
+          }
           const folder = await prisma.folder.create({
-            data: { title: args.title, description: args.description, parentId: args.parentId, userId },
+            data: { title: args.title, description: args.description, parentId, userId },
           });
           return { success: true, folderId: folder.id, message: `Created folder "${folder.title}"` };
         },
@@ -231,12 +250,16 @@ ${memorySection}`;
         execute: async (args) => {
           const ownedDeck = await prisma.deck.findFirst({ where: { id: args.deckId, userId } });
           if (!ownedDeck) return { success: false, error: "Deck not found or access denied" };
-          if (args.folderId) {
-            const folder = await prisma.folder.findFirst({ where: { id: args.folderId, userId } });
-            if (!folder) return { success: false, error: "Folder not found or access denied" };
+
+          let folderId: string | null;
+          try {
+            folderId = await getOwnedOptionalFolderId(args.folderId, userId);
+          } catch (error) {
+            return { success: false, error: (error as Error).message };
           }
-          await prisma.deck.update({ where: { id: args.deckId }, data: { folderId: args.folderId ?? null } });
-          return { success: true, message: args.folderId ? `Moved deck into folder` : `Moved deck to top level` };
+
+          await prisma.deck.update({ where: { id: args.deckId }, data: { folderId } });
+          return { success: true, message: folderId ? `Moved deck into folder` : `Moved deck to top level` };
         },
       }),
 

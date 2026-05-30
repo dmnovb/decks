@@ -12,7 +12,6 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { X, Clock, Target, TrendingUp } from "lucide-react";
 import { SessionConfig } from "@/utils/card-filters";
-import { toast } from "sonner";
 
 const fetcher = (endpoint: string) => fetch(endpoint).then((r) => r.json());
 
@@ -102,8 +101,8 @@ export function FlashcardsView() {
   }, [sessionState, currentCard, flipCard, rateCard, endSession]);
 
   const handleStartSession = useCallback(
-    (config: SessionConfig) => {
-      startSession(flashcards, config, id as string);
+    async (config: SessionConfig) => {
+      await startSession(flashcards, config, id as string);
     },
     [flashcards, id, startSession],
   );

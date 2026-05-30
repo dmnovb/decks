@@ -1,46 +1,42 @@
 import { Flashcard } from "@/generated/prisma";
-import { useReducer, useCallback, useEffect } from "react";
+import { useCallback, useReducer, useState } from "react";
 import { applySessionConfig, SessionConfig } from "@/utils/card-filters";
 import useUpdateFlashcard from "./use-update-flashcard";
-import { sm2 } from "@/utils/sm2";
+import { toast } from "sonner";
 
 export interface CardResult {
   flashcardId: string;
   quality: number;
-  timeSpent: number; // milliseconds
+  timeSpent: number;
 }
 
 interface SessionState {
-  // Configuration
   config: SessionConfig;
   deckId: string;
-
-  // Card queue
+  sessionId: string | null;
   cards: Flashcard[];
   currentIndex: number;
-
-  // Session statistics
   startTime: Date | null;
   completedCards: number;
-  correctCount: number; // quality >= 3
-  wrongCount: number; // quality < 3
+  correctCount: number;
+  wrongCount: number;
   currentStreak: number;
   bestStreak: number;
-
-  // Card state
   showBack: boolean;
-  cardStartTime: number | null; // Timestamp when current card was shown
-
-  // Session results
+  cardStartTime: number | null;
   cardResults: CardResult[];
-
-  // Status
   isActive: boolean;
   isCompleted: boolean;
 }
 
 type SessionAction =
-  | { type: "START_SESSION"; cards: Flashcard[]; config: SessionConfig; deckId: string }
+  | {
+      type: "START_SESSION";
+      cards: Flashcard[];
+      config: SessionConfig;
+      deckId: string;
+      sessionId: string;
+    }
   | { type: "FLIP_CARD" }
   | { type: "RATE_CARD"; quality: number; timeSpent: number }
   | { type: "NEXT_CARD" }
@@ -50,6 +46,7 @@ type SessionAction =
 const initialState: SessionState = {
   config: {},
   deckId: "",
+  sessionId: null,
   cards: [],
   currentIndex: 0,
   startTime: null,
@@ -72,6 +69,7 @@ function sessionReducer(state: SessionState, action: SessionAction): SessionStat
         ...initialState,
         config: action.config,
         deckId: action.deckId,
+        sessionId: action.sessionId,
         cards: action.cards,
         startTime: new Date(),
         isActive: true,
@@ -92,7 +90,7 @@ function sessionReducer(state: SessionState, action: SessionAction): SessionStat
         ...state,
         completedCards: state.completedCards + 1,
         correctCount: isCorrect ? state.correctCount + 1 : state.correctCount,
-        wrongCount: !isCorrect ? state.wrongCount + 1 : state.wrongCount,
+        wrongCount: isCorrect ? state.wrongCount : state.wrongCount + 1,
         currentStreak: newStreak,
         bestStreak: Math.max(newStreak, state.bestStreak),
         cardResults: [
@@ -132,105 +130,139 @@ function sessionReducer(state: SessionState, action: SessionAction): SessionStat
 export interface UseStudySessionReturn {
   sessionState: SessionState;
   currentCard: Flashcard | null;
-  startSession: (allCards: Flashcard[], config: SessionConfig, deckId: string) => void;
+  startSession: (allCards: Flashcard[], config: SessionConfig, deckId: string) => Promise<void>;
   flipCard: () => void;
   rateCard: (quality: number) => Promise<void>;
-  endSession: () => void;
+  endSession: () => Promise<void>;
   resetSession: () => void;
   isLoading: boolean;
   accuracy: number;
   progress: number;
-  elapsedTime: number; // seconds
+  elapsedTime: number;
 }
 
 export function useStudySession(): UseStudySessionReturn {
   const [sessionState, dispatch] = useReducer(sessionReducer, initialState);
-  const { updateFlashcard, isLoading } = useUpdateFlashcard();
+  const [isSessionLoading, setIsSessionLoading] = useState(false);
+  const { updateFlashcard, isLoading: isUpdatingCard } = useUpdateFlashcard();
 
-  // Start a new session with filtered/sorted cards
+  const completeSession = useCallback(async (sessionId: string) => {
+    const response = await fetch("/api/study-sessions", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ id: sessionId }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to complete study session");
+    }
+  }, []);
+
   const startSession = useCallback(
-    (allCards: Flashcard[], config: SessionConfig, deckId: string) => {
+    async (allCards: Flashcard[], config: SessionConfig, deckId: string) => {
       const filteredCards = applySessionConfig(allCards, config);
-      dispatch({
-        type: "START_SESSION",
-        cards: filteredCards,
-        config,
-        deckId,
-      });
+      if (filteredCards.length === 0) {
+        toast.error("No cards available for this session.");
+        return;
+      }
+
+      setIsSessionLoading(true);
+      try {
+        const response = await fetch("/api/study-sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            deckId,
+            cardIds: filteredCards.map((card) => card.id),
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to start study session");
+        }
+
+        const { session } = await response.json();
+        dispatch({
+          type: "START_SESSION",
+          cards: filteredCards,
+          config,
+          deckId,
+          sessionId: session.id,
+        });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to start study session");
+        throw error;
+      } finally {
+        setIsSessionLoading(false);
+      }
     },
     [],
   );
 
-  // Flip the current card
   const flipCard = useCallback(() => {
     dispatch({ type: "FLIP_CARD" });
   }, []);
 
-  // Rate the current card and move to next
   const rateCard = useCallback(
     async (quality: number) => {
       const currentCard = sessionState.cards[sessionState.currentIndex];
-      if (!currentCard) return;
+      if (!currentCard || !sessionState.sessionId || isUpdatingCard || isSessionLoading) return;
 
-      // Calculate time spent on this card
       const timeSpent = sessionState.cardStartTime ? Date.now() - sessionState.cardStartTime : 0;
 
-      // Apply SM2 algorithm
-      const { interval, repetitions, easeFactor } = sm2(
-        quality,
-        currentCard.repetitions,
-        currentCard.interval,
-        currentCard.easeFactor,
-      );
-
-      // Prepare updated card data
-      const updatedCard: Flashcard = {
-        ...currentCard,
-        difficulty: quality,
-        interval,
-        repetitions,
-        easeFactor,
-        lastReviewed: new Date(),
-        nextReview: new Date(Date.now() + interval * 24 * 60 * 60 * 1000),
-      };
-
-      // Record rating in session state
-      dispatch({ type: "RATE_CARD", quality, timeSpent });
-
       try {
-        // Persist to database (hook handles statistics calculation)
         await updateFlashcard({
-          flashcard: updatedCard,
+          flashcard: currentCard,
+          sessionId: sessionState.sessionId,
           quality,
+          timeSpent,
         });
 
-        // Check if this was the last card
+        dispatch({ type: "RATE_CARD", quality, timeSpent });
+
         if (sessionState.currentIndex >= sessionState.cards.length - 1) {
+          setIsSessionLoading(true);
+          try {
+            await completeSession(sessionState.sessionId);
+          } catch (error) {
+            console.error("Failed to complete session:", error);
+            toast.error("Session reviews were saved, but completion failed.");
+          } finally {
+            setIsSessionLoading(false);
+          }
           dispatch({ type: "COMPLETE_SESSION" });
         } else {
-          // Move to next card
           dispatch({ type: "NEXT_CARD" });
         }
       } catch (error) {
-        // Error already handled by hook with toast
-        // Don't advance to next card on error
-        console.error("Failed to save card:", error);
+        console.error("Failed to save card review:", error);
       }
     },
-    [sessionState, updateFlashcard],
+    [completeSession, isSessionLoading, isUpdatingCard, sessionState, updateFlashcard],
   );
 
-  // End session early
-  const endSession = useCallback(() => {
-    dispatch({ type: "COMPLETE_SESSION" });
-  }, []);
+  const endSession = useCallback(async () => {
+    if (sessionState.sessionId) {
+      setIsSessionLoading(true);
+      try {
+        await completeSession(sessionState.sessionId);
+      } catch (error) {
+        console.error("Failed to complete session:", error);
+        toast.error("Session completion failed.");
+      } finally {
+        setIsSessionLoading(false);
+      }
+    }
 
-  // Reset session
+    dispatch({ type: "COMPLETE_SESSION" });
+  }, [completeSession, sessionState.sessionId]);
+
   const resetSession = useCallback(() => {
     dispatch({ type: "RESET_SESSION" });
   }, []);
 
-  // Calculated properties
   const currentCard =
     sessionState.isActive && sessionState.currentIndex < sessionState.cards.length
       ? sessionState.cards[sessionState.currentIndex]
@@ -258,7 +290,7 @@ export function useStudySession(): UseStudySessionReturn {
     rateCard,
     endSession,
     resetSession,
-    isLoading,
+    isLoading: isUpdatingCard || isSessionLoading,
     accuracy,
     progress,
     elapsedTime,

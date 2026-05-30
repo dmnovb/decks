@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
+import { getOwnedOptionalFolderId } from "@/lib/ownership";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
 
@@ -184,12 +185,19 @@ async function executeFunctions(
 ) {
   switch (functionName) {
     case "create_deck": {
+      let folderId: string | null;
+      try {
+        folderId = await getOwnedOptionalFolderId(args.folderId, userId);
+      } catch {
+        return { success: false, error: "Folder not found or access denied" };
+      }
+
       const deck = await prisma.deck.create({
         data: {
           title: args.title,
           description: args.description,
           category: args.category,
-          folderId: args.folderId,
+          folderId,
           userId,
         },
       });
@@ -218,12 +226,19 @@ async function executeFunctions(
       };
     }
     case "create_deck_with_flashcards": {
+      let folderId: string | null;
+      try {
+        folderId = await getOwnedOptionalFolderId(args.folderId, userId);
+      } catch {
+        return { success: false, error: "Folder not found or access denied" };
+      }
+
       const deck = await prisma.deck.create({
         data: {
           title: args.title,
           description: args.description,
           category: args.category,
-          folderId: args.folderId,
+          folderId,
           userId,
           flashcards: { create: args.flashcards },
         },
@@ -279,11 +294,18 @@ async function executeFunctions(
       };
     }
     case "create_folder": {
+      let parentId: string | null;
+      try {
+        parentId = await getOwnedOptionalFolderId(args.parentId, userId);
+      } catch {
+        return { success: false, error: "Parent folder not found or access denied" };
+      }
+
       const folder = await prisma.folder.create({
         data: {
           title: args.title,
           description: args.description,
-          parentId: args.parentId,
+          parentId,
           userId,
         },
       });
@@ -317,20 +339,21 @@ async function executeFunctions(
       });
       if (!ownedDeck)
         return { success: false, error: "Deck not found or access denied" };
-      if (args.folderId) {
-        const folder = await prisma.folder.findFirst({
-          where: { id: args.folderId, userId },
-        });
-        if (!folder)
-          return { success: false, error: "Folder not found or access denied" };
+
+      let folderId: string | null;
+      try {
+        folderId = await getOwnedOptionalFolderId(args.folderId, userId);
+      } catch {
+        return { success: false, error: "Folder not found or access denied" };
       }
+
       await prisma.deck.update({
         where: { id: args.deckId },
-        data: { folderId: args.folderId ?? null },
+        data: { folderId },
       });
       return {
         success: true,
-        message: args.folderId
+        message: folderId
           ? `Moved deck "${ownedDeck.title}" into folder`
           : `Moved deck "${ownedDeck.title}" to top level`,
       };

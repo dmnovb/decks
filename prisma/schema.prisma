@@ -50,6 +50,9 @@ model Folder {
   parent      Folder?  @relation("FolderNesting", fields: [parentId], references: [id])
   children    Folder[] @relation("FolderNesting")
   decks       Deck[]
+
+  @@index([userId])
+  @@index([parentId])
 }
 
 model Deck {
@@ -66,6 +69,8 @@ model Deck {
   folder        Folder?        @relation(fields: [folderId], references: [id])
   flashcards    Flashcard[]
   studySessions StudySession[]
+
+  @@index([folderId])
 }
 
 model Flashcard {
@@ -133,6 +138,9 @@ model StudySession {
   deck         Deck         @relation(fields: [deckId], references: [id])
   user         User         @relation(fields: [userId], references: [id])
   cardReviews  CardReview[]
+
+  @@index([userId, startedAt])
+  @@index([deckId])
 }
 
 model CardReview {
@@ -146,4 +154,7 @@ model CardReview {
   // Relations
   session     StudySession @relation(fields: [sessionId], references: [id])
   flashcard   Flashcard    @relation(fields: [flashcardId], references: [id])
+
+  @@index([sessionId])
+  @@index([flashcardId])
 }
