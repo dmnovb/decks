@@ -38,6 +38,13 @@ export const getUserById = async (id: string) => {
       id: true,
       email: true,
       name: true,
+      credits: {
+        select: {
+          balance: true,
+          totalGranted: true,
+          totalSpent: true,
+        },
+      },
     },
   });
 };
@@ -50,6 +57,19 @@ export const createUser = async (name: string, password: string, email: string) 
       email,
       password: hashedPassword,
       name,
+      credits: {
+        create: {
+          balance: 50,
+          totalGranted: 50,
+          transactions: {
+            create: {
+              amount: 50,
+              type: "GRANT",
+              reason: "initial_account_allocation",
+            },
+          },
+        },
+      },
     },
     select: {
       id: true,

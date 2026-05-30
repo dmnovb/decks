@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
 import { getOwnedOptionalFolderId } from "@/lib/ownership";
+import { creditsRequiredResponse, InsufficientCreditsError, spendCredits } from "@/lib/credits";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY!, timeout: 60000, maxRetries: 0 });
 
@@ -365,6 +366,8 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: false, error: "Message is required" }, { status: 400 });
     }
 
+    await spendCredits(userId, 1, "ai_agent_stream_message", { route: "/api/ai/agent/stream" });
+
     const userMemory = await prisma.userMemory.findUnique({ where: { userId } });
 
     const messages: Anthropic.MessageParam[] = [
@@ -489,6 +492,10 @@ ${memorySection}`;
       },
     });
   } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+
     console.error("Agent Stream API Error:", error);
     return Response.json(
       { success: false, error: (error as Error).message || "Failed to process request" },

@@ -5,6 +5,7 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
 import { getOwnedOptionalFolderId } from "@/lib/ownership";
+import { creditsRequiredResponse, InsufficientCreditsError, spendCredits } from "@/lib/credits";
 
 const anthropic = createAnthropic({ apiKey: process.env.CLAUDE_KEY! });
 
@@ -25,6 +26,15 @@ export async function POST(request: NextRequest) {
     messages: UIMessage[];
     conversationId?: string;
   };
+
+  try {
+    await spendCredits(userId, 1, "chat_message", { route: "/api/chat", conversationId });
+  } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+    throw error;
+  }
 
   const userMemory = await prisma.userMemory.findUnique({ where: { userId } });
 

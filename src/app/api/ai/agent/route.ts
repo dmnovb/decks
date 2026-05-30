@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
 import { getOwnedOptionalFolderId } from "@/lib/ownership";
+import { creditsRequiredResponse, InsufficientCreditsError, spendCredits } from "@/lib/credits";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
 
@@ -394,6 +395,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    await spendCredits(userId, 1, "ai_agent_message", { route: "/api/ai/agent" });
+
     const messages: Anthropic.MessageParam[] = [
       ...history.map((msg: any) => ({ role: msg.role, content: msg.content })),
       { role: "user", content: message },
@@ -468,6 +471,10 @@ ${process.env.AI_SYSTEM_PROMPT_ACE!}`;
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+
     console.error("Agent API Error:", error);
     return Response.json(
       { success: false, error: "Failed to process request" },

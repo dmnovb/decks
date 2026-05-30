@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import { verifyToken } from "@/lib/auth/helpers";
+import { creditsRequiredResponse, InsufficientCreditsError, spendCredits } from "@/lib/credits";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
 
@@ -34,6 +35,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    await spendCredits(userId, 1, "ai_message", { route: "/api/ai", method: "POST" });
+
     let system = "";
     if (systemPrompt) system += `System Instructions: ${systemPrompt}\n\n`;
     if (context) system += `Context: ${context}\n\n`;
@@ -63,6 +66,10 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+
     console.error("Claude API Error:", error);
     return Response.json(
       { success: false, error: "Failed to process request" },
@@ -91,6 +98,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    await spendCredits(userId, 1, "ai_message", { route: "/api/ai", method: "GET" });
+
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -128,6 +137,10 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+
     console.error("Streaming Error:", error);
     return Response.json(
       { success: false, error: "Failed to process request" },

@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
+import { creditsRequiredResponse, InsufficientCreditsError, spendCredits } from "@/lib/credits";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
 
@@ -36,6 +37,8 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: false, error: "Deck not found" }, { status: 404 });
     }
 
+    await spendCredits(payload.userId, count, "generate_flashcards", { deckId, count });
+
     const fullPrompt = `Generate ${count} high-quality flashcards for: ${prompt}
 
 Return ONLY a valid JSON array with this exact structure (no markdown, no extra text):
@@ -64,7 +67,7 @@ Make the flashcards educational, clear, and appropriate for language learning.`;
         .replace(/```\n?/g, "")
         .trim();
       flashcardsData = JSON.parse(cleanedResponse);
-    } catch (e) {
+    } catch {
       console.error("Failed to parse AI response:", responseText);
       return Response.json(
         { success: false, error: "Failed to parse AI response" },
@@ -87,6 +90,10 @@ Make the flashcards educational, clear, and appropriate for language learning.`;
       message: `Generated ${createdFlashcards.count} flashcards`,
     });
   } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+
     console.error("Generate flashcards error:", error);
     return Response.json(
       { success: false, error: "Failed to generate flashcards" },

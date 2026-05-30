@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import { verifyToken } from "@/lib/auth/helpers";
+import { creditsRequiredResponse, InsufficientCreditsError, spendCredits } from "@/lib/credits";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
 
@@ -26,6 +27,15 @@ export async function POST(request: NextRequest) {
 
   if (!prompt || typeof prompt !== "string") {
     return Response.json({ success: false, error: "prompt is required" }, { status: 400 });
+  }
+
+  try {
+    await spendCredits(userId, 1, "ai_stream", { route: "/api/ai/stream", method: "POST" });
+  } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+    throw error;
   }
 
   const encoder = new TextEncoder();
@@ -69,6 +79,15 @@ export async function GET(request: NextRequest) {
 
   if (!prompt) {
     return Response.json({ success: false, error: "prompt is required" }, { status: 400 });
+  }
+
+  try {
+    await spendCredits(userId, 1, "ai_stream", { route: "/api/ai/stream", method: "GET" });
+  } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+    throw error;
   }
 
   const encoder = new TextEncoder();
