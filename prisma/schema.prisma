@@ -127,6 +127,10 @@ model Flashcard {
 
   // Session tracking
   cardReviews CardReview[]
+
+  @@index([deckId])
+  @@index([nextReview])
+  @@index([lastReviewed])
 }
 
 model Conversation {
