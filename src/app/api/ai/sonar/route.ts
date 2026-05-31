@@ -3,6 +3,12 @@ import { NextRequest } from "next/server";
 import { verifyToken } from "@/lib/auth/helpers";
 import { apiErrorResponseOptions, nonEmptyString, validateJsonBody } from "@/lib/api/validation";
 import { z } from "zod";
+import {
+  creditsRequiredResponse,
+  InsufficientCreditsError,
+  refundCredits,
+  spendCredits,
+} from "@/lib/credits";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
 
@@ -15,9 +21,18 @@ const sonarPromptSchema = z.object({
   system: z.string().trim().optional(),
 });
 
+async function refundFailedAiRequest(userId: string) {
+  try {
+    await refundCredits(userId, 1, "ai_sonar_failed", { route: "/api/ai/sonar" });
+  } catch (error) {
+    console.error("Failed to refund credits:", error);
+  }
+}
+
 export async function POST(request: NextRequest) {
   const token = request.cookies.get("auth-token")?.value;
-  if (!token || !verifyToken(token)) {
+  const payload = token ? verifyToken(token) : null;
+  if (!payload) {
     return Response.json({ success: false, error: "Authentication required" }, { status: 401 });
   }
 
@@ -27,13 +42,21 @@ export async function POST(request: NextRequest) {
 
     const { prompt, system } = body.data;
 
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: MAX_TOKENS,
-      system,
-      temperature: TEMPERATURE,
-      messages: [{ role: "user", content: prompt }],
-    });
+    await spendCredits(payload.userId, 1, "ai_sonar", { route: "/api/ai/sonar" });
+
+    let response;
+    try {
+      response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        system,
+        temperature: TEMPERATURE,
+        messages: [{ role: "user", content: prompt }],
+      });
+    } catch (error) {
+      await refundFailedAiRequest(payload.userId);
+      throw error;
+    }
 
     const text = response.content[0].type === "text" ? response.content[0].text : "";
 
@@ -43,6 +66,10 @@ export async function POST(request: NextRequest) {
       finishReason: response.stop_reason,
     });
   } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+
     console.error("Claude API Error:", error);
     return Response.json({ success: false, error: "Failed to process request" }, { status: 500 });
   }

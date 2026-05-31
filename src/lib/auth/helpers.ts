@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import prisma from "@/lib/prisma";
+import { INITIAL_ACCOUNT_CREDITS } from "@/lib/credits";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error("JWT_SECRET environment variable is required");
@@ -38,6 +39,13 @@ export const getUserById = async (id: string) => {
       id: true,
       email: true,
       name: true,
+      credits: {
+        select: {
+          balance: true,
+          totalGranted: true,
+          totalSpent: true,
+        },
+      },
     },
   });
 };
@@ -50,6 +58,19 @@ export const createUser = async (name: string, password: string, email: string) 
       email,
       password: hashedPassword,
       name,
+      credits: {
+        create: {
+          balance: INITIAL_ACCOUNT_CREDITS,
+          totalGranted: INITIAL_ACCOUNT_CREDITS,
+          transactions: {
+            create: {
+              amount: INITIAL_ACCOUNT_CREDITS,
+              type: "GRANT",
+              reason: "initial_account_allocation",
+            },
+          },
+        },
+      },
     },
     select: {
       id: true,

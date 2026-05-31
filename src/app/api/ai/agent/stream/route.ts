@@ -5,8 +5,24 @@ import { verifyToken } from "@/lib/auth/helpers";
 import { getOwnedOptionalFolderId } from "@/lib/ownership";
 import { apiErrorResponseOptions, nonEmptyString, validateJsonBody } from "@/lib/api/validation";
 import { z } from "zod";
+import {
+  creditsRequiredResponse,
+  InsufficientCreditsError,
+  refundCredits,
+  spendCredits,
+} from "@/lib/credits";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY!, timeout: 60000, maxRetries: 0 });
+
+async function refundFailedAgentStreamRequest(userId: string) {
+  try {
+    await refundCredits(userId, 1, "ai_agent_stream_message_failed", {
+      route: "/api/ai/agent/stream",
+    });
+  } catch (error) {
+    console.error("Failed to refund credits:", error);
+  }
+}
 
 const agentHistoryMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
@@ -384,6 +400,8 @@ export async function POST(request: NextRequest) {
     const model = "claude-sonnet-4-6";
     const maxTokens = 4096;
 
+    await spendCredits(userId, 1, "ai_agent_stream_message", { route: "/api/ai/agent/stream" });
+
     const userMemory = await prisma.userMemory.findUnique({ where: { userId } });
 
     const messages: Anthropic.MessageParam[] = [
@@ -495,6 +513,7 @@ ${memorySection}`;
             request.signal.aborted;
           if (!isDisconnect) {
             console.error("Streaming error:", error);
+            await refundFailedAgentStreamRequest(userId);
             sendEvent(controller, "error", { error: "An error occurred" });
           }
           try {
@@ -514,6 +533,10 @@ ${memorySection}`;
       },
     });
   } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+
     console.error("Agent Stream API Error:", error);
     return Response.json(
       { success: false, error: (error as Error).message || "Failed to process request" },

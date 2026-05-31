@@ -3,6 +3,12 @@ import { NextRequest } from "next/server";
 import { verifyToken } from "@/lib/auth/helpers";
 import { apiErrorResponseOptions, nonEmptyString, validateJsonBody } from "@/lib/api/validation";
 import { z } from "zod";
+import {
+  creditsRequiredResponse,
+  InsufficientCreditsError,
+  refundCredits,
+  spendCredits,
+} from "@/lib/credits";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
 
@@ -22,6 +28,14 @@ function getAuthenticatedUserId(request: NextRequest): string | null {
   return payload?.userId ?? null;
 }
 
+async function refundFailedAiStream(userId: string, method: "GET" | "POST") {
+  try {
+    await refundCredits(userId, 1, "ai_stream_failed", { route: "/api/ai/stream", method });
+  } catch (error) {
+    console.error("Failed to refund credits:", error);
+  }
+}
+
 export async function POST(request: NextRequest) {
   const userId = getAuthenticatedUserId(request);
   if (!userId) {
@@ -33,33 +47,45 @@ export async function POST(request: NextRequest) {
 
   const { prompt, system } = body.data;
 
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream({
-    async start(controller) {
-      try {
-        const response = anthropic.messages.stream({
-          model: MODEL,
-          max_tokens: MAX_TOKENS,
-          system,
-          temperature: TEMPERATURE,
-          messages: [{ role: "user", content: prompt }],
-        });
+  try {
+    await spendCredits(userId, 1, "ai_stream", { route: "/api/ai/stream", method: "POST" });
 
-        for await (const chunk of response) {
-          if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
-            controller.enqueue(encoder.encode(chunk.delta.text));
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const response = anthropic.messages.stream({
+            model: MODEL,
+            max_tokens: MAX_TOKENS,
+            system,
+            temperature: TEMPERATURE,
+            messages: [{ role: "user", content: prompt }],
+          });
+
+          for await (const chunk of response) {
+            if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
+              controller.enqueue(encoder.encode(chunk.delta.text));
+            }
           }
+          controller.close();
+        } catch (error) {
+          await refundFailedAiStream(userId, "POST");
+          controller.error(error);
         }
-        controller.close();
-      } catch (error) {
-        controller.error(error);
-      }
-    },
-  });
+      },
+    });
 
-  return new Response(stream, {
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
-  });
+    return new Response(stream, {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+
+    console.error("Streaming Error:", error);
+    return Response.json({ success: false, error: "Failed to process request" }, { status: 500 });
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -76,31 +102,43 @@ export async function GET(request: NextRequest) {
     return Response.json({ success: false, error: "prompt is required" }, { status: 400 });
   }
 
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream({
-    async start(controller) {
-      try {
-        const response = anthropic.messages.stream({
-          model: MODEL,
-          max_tokens: MAX_TOKENS,
-          system,
-          temperature: TEMPERATURE,
-          messages: [{ role: "user", content: prompt }],
-        });
+  try {
+    await spendCredits(userId, 1, "ai_stream", { route: "/api/ai/stream", method: "GET" });
 
-        for await (const chunk of response) {
-          if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
-            controller.enqueue(encoder.encode(chunk.delta.text));
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const response = anthropic.messages.stream({
+            model: MODEL,
+            max_tokens: MAX_TOKENS,
+            system,
+            temperature: TEMPERATURE,
+            messages: [{ role: "user", content: prompt }],
+          });
+
+          for await (const chunk of response) {
+            if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
+              controller.enqueue(encoder.encode(chunk.delta.text));
+            }
           }
+          controller.close();
+        } catch (error) {
+          await refundFailedAiStream(userId, "GET");
+          controller.error(error);
         }
-        controller.close();
-      } catch (error) {
-        controller.error(error);
-      }
-    },
-  });
+      },
+    });
 
-  return new Response(stream, {
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
-  });
+    return new Response(stream, {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+
+    console.error("Streaming Error:", error);
+    return Response.json({ success: false, error: "Failed to process request" }, { status: 500 });
+  }
 }

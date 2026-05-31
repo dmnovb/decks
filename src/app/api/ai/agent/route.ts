@@ -5,8 +5,22 @@ import { verifyToken } from "@/lib/auth/helpers";
 import { getOwnedOptionalFolderId } from "@/lib/ownership";
 import { apiErrorResponseOptions, nonEmptyString, validateJsonBody } from "@/lib/api/validation";
 import { z } from "zod";
+import {
+  creditsRequiredResponse,
+  InsufficientCreditsError,
+  refundCredits,
+  spendCredits,
+} from "@/lib/credits";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
+
+async function refundFailedAgentRequest(userId: string) {
+  try {
+    await refundCredits(userId, 1, "ai_agent_message_failed", { route: "/api/ai/agent" });
+  } catch (error) {
+    console.error("Failed to refund credits:", error);
+  }
+}
 
 const agentHistoryMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
@@ -385,6 +399,8 @@ export async function POST(request: NextRequest) {
     const model = "claude-sonnet-4-6";
     const maxTokens = 8192;
 
+    await spendCredits(userId, 1, "ai_agent_message", { route: "/api/ai/agent" });
+
     const messages: Anthropic.MessageParam[] = [
       ...history.map((msg) => ({ role: msg.role, content: msg.content })),
       { role: "user", content: message },
@@ -396,14 +412,27 @@ export async function POST(request: NextRequest) {
 
 ${process.env.AI_SYSTEM_PROMPT_ACE!}`;
 
-    let response = await anthropic.messages.create({
-      model,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages,
-      tools,
-      temperature: 0.3,
-    });
+    let shouldRefundOnAiFailure = true;
+    const createMessage = async () => {
+      try {
+        return await anthropic.messages.create({
+          model,
+          max_tokens: maxTokens,
+          system: systemPrompt,
+          messages,
+          tools,
+          temperature: 0.3,
+        });
+      } catch (error) {
+        if (shouldRefundOnAiFailure) {
+          shouldRefundOnAiFailure = false;
+          await refundFailedAgentRequest(userId);
+        }
+        throw error;
+      }
+    };
+
+    let response = await createMessage();
 
     // Handle tool call loop
     while (response.stop_reason === "tool_use") {
@@ -438,15 +467,10 @@ ${process.env.AI_SYSTEM_PROMPT_ACE!}`;
 
       messages.push({ role: "user", content: toolResults });
 
-      response = await anthropic.messages.create({
-        model,
-        max_tokens: maxTokens,
-        system: systemPrompt,
-        messages,
-        tools,
-        temperature: 0.3,
-      });
+      response = await createMessage();
     }
+
+    shouldRefundOnAiFailure = false;
 
     const text =
       response.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text ?? "";
@@ -458,6 +482,10 @@ ${process.env.AI_SYSTEM_PROMPT_ACE!}`;
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+
     console.error("Agent API Error:", error);
     return Response.json({ success: false, error: "Failed to process request" }, { status: 500 });
   }

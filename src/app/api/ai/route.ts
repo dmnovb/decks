@@ -3,6 +3,12 @@ import { NextRequest } from "next/server";
 import { verifyToken } from "@/lib/auth/helpers";
 import { apiErrorResponseOptions, nonEmptyString, validateJsonBody } from "@/lib/api/validation";
 import { z } from "zod";
+import {
+  creditsRequiredResponse,
+  InsufficientCreditsError,
+  refundCredits,
+  spendCredits,
+} from "@/lib/credits";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
 
@@ -29,6 +35,14 @@ function getAuthenticatedUserId(request: NextRequest): string | null {
   return payload?.userId ?? null;
 }
 
+async function refundFailedAiRequest(userId: string, method: "GET" | "POST") {
+  try {
+    await refundCredits(userId, 1, "ai_message_failed", { route: "/api/ai", method });
+  } catch (error) {
+    console.error("Failed to refund credits:", error);
+  }
+}
+
 export async function POST(request: NextRequest) {
   const userId = getAuthenticatedUserId(request);
   if (!userId) {
@@ -41,6 +55,8 @@ export async function POST(request: NextRequest) {
 
     const { message, systemPrompt, context, history } = body.data;
 
+    await spendCredits(userId, 1, "ai_message", { route: "/api/ai", method: "POST" });
+
     let system = "";
     if (systemPrompt) system += `System Instructions: ${systemPrompt}\n\n`;
     if (context) system += `Context: ${context}\n\n`;
@@ -51,13 +67,19 @@ export async function POST(request: NextRequest) {
     }
     messages.push({ role: "user", content: message });
 
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: MAX_TOKENS,
-      system: system || undefined,
-      messages,
-      temperature: TEMPERATURE,
-    });
+    let response;
+    try {
+      response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        system: system || undefined,
+        messages,
+        temperature: TEMPERATURE,
+      });
+    } catch (error) {
+      await refundFailedAiRequest(userId, "POST");
+      throw error;
+    }
 
     const text = response.content[0].type === "text" ? response.content[0].text : "";
 
@@ -67,6 +89,10 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+
     console.error("Claude API Error:", error);
     return Response.json({ success: false, error: "Failed to process request" }, { status: 500 });
   }
@@ -86,6 +112,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    await spendCredits(userId, 1, "ai_message", { route: "/api/ai", method: "GET" });
+
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -105,6 +133,7 @@ export async function GET(request: NextRequest) {
           }
           controller.close();
         } catch (error) {
+          await refundFailedAiRequest(userId, "GET");
           controller.error(error);
         }
       },
@@ -118,6 +147,10 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+
     console.error("Streaming Error:", error);
     return Response.json({ success: false, error: "Failed to process request" }, { status: 500 });
   }
