@@ -1,7 +1,26 @@
 import prisma from "@/lib/prisma";
+import { nonEmptyString, optionalId, optionalString, validateJsonBody } from "@/lib/api/validation";
 import { verifyToken } from "@/lib/auth/helpers";
 import { validateOptionalFolder } from "@/lib/ownership";
 import { NextRequest } from "next/server";
+import { z } from "zod";
+
+const createDeckSchema = z.object({
+  title: nonEmptyString("Deck title"),
+  description: optionalString,
+  folderId: optionalId,
+});
+
+const updateDeckSchema = z.object({
+  id: nonEmptyString("Deck ID"),
+  title: nonEmptyString("Deck title").optional(),
+  description: optionalString,
+  folderId: optionalId,
+});
+
+const deleteDeckSchema = z.object({
+  id: nonEmptyString("Deck ID"),
+});
 
 function getAuthenticatedUserId(request: NextRequest): string | null {
   const token = request.cookies.get("auth-token")?.value;
@@ -35,18 +54,17 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { title, description, folderId } = await request.json();
+    const body = await validateJsonBody(request, createDeckSchema);
+    if (!body.success) return body.response;
 
-    if (!title || typeof title !== "string") {
-      return new Response("Deck title is required", { status: 400 });
-    }
+    const { title, description, folderId } = body.data;
 
     const folderValidation = await validateOptionalFolder(folderId, userId);
     if (folderValidation) {
       return new Response(folderValidation.error, { status: folderValidation.status });
     }
 
-    const ownedFolderId = typeof folderId === "string" && folderId.length > 0 ? folderId : null;
+    const ownedFolderId = folderId ?? null;
     const deck = await prisma.deck.create({
       data: { title, description, folderId: ownedFolderId, userId },
     });
@@ -64,11 +82,10 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const { id, folderId, title, description } = await request.json();
+    const body = await validateJsonBody(request, updateDeckSchema);
+    if (!body.success) return body.response;
 
-    if (!id) {
-      return new Response("Deck ID is required", { status: 400 });
-    }
+    const { id, folderId, title, description } = body.data;
 
     const [deck, folderValidation] = await Promise.all([
       prisma.deck.findFirst({ where: { id, userId } }),
@@ -84,7 +101,7 @@ export async function PATCH(request: NextRequest) {
     const updated = await prisma.deck.update({
       where: { id },
       data: {
-        ...(folderId !== undefined && { folderId: folderId || null }),
+        ...(folderId !== undefined && { folderId }),
         ...(title !== undefined && { title }),
         ...(description !== undefined && { description }),
       },
@@ -104,11 +121,10 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    const { id } = await request.json();
+    const body = await validateJsonBody(request, deleteDeckSchema);
+    if (!body.success) return body.response;
 
-    if (!id) {
-      return new Response("Deck ID is required", { status: 400 });
-    }
+    const { id } = body.data;
 
     const deck = await prisma.deck.findFirst({ where: { id, userId } });
     if (!deck) {

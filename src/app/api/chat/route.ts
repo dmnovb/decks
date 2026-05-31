@@ -5,6 +5,8 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
 import { getOwnedOptionalFolderId } from "@/lib/ownership";
+import { validateJsonBody } from "@/lib/api/validation";
+import { z } from "zod";
 import {
   creditsRequiredResponse,
   InsufficientCreditsError,
@@ -13,6 +15,13 @@ import {
 } from "@/lib/credits";
 
 const anthropic = createAnthropic({ apiKey: process.env.CLAUDE_KEY! });
+
+const chatBodySchema = z.object({
+  messages: z
+    .array(z.custom<UIMessage>((value) => typeof value === "object" && value !== null))
+    .min(1, "At least one message is required"),
+  conversationId: z.string().trim().min(1).optional(),
+});
 
 async function refundFailedChatRequest(userId: string, conversationId?: string) {
   try {
@@ -35,10 +44,10 @@ export async function POST(request: NextRequest) {
   }
   const userId = auth.userId;
 
-  const { messages, conversationId } = (await request.json()) as {
-    messages: UIMessage[];
-    conversationId?: string;
-  };
+  const body = await validateJsonBody(request, chatBodySchema);
+  if (!body.success) return body.response;
+
+  const { messages, conversationId } = body.data;
 
   try {
     await spendCredits(userId, 1, "chat_message", { route: "/api/chat", conversationId });

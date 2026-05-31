@@ -3,6 +3,8 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
 import { getOwnedOptionalFolderId } from "@/lib/ownership";
+import { apiErrorResponseOptions, nonEmptyString, validateJsonBody } from "@/lib/api/validation";
+import { z } from "zod";
 import {
   creditsRequiredResponse,
   InsufficientCreditsError,
@@ -19,6 +21,16 @@ async function refundFailedAgentRequest(userId: string) {
     console.error("Failed to refund credits:", error);
   }
 }
+
+const agentHistoryMessageSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: nonEmptyString("Message content"),
+});
+
+const agentMessageSchema = z.object({
+  message: nonEmptyString("Message"),
+  history: z.array(agentHistoryMessageSchema).optional().default([]),
+});
 
 const tools: Anthropic.Tool[] = [
   {
@@ -380,18 +392,17 @@ export async function POST(request: NextRequest) {
 
     const userId = payload.userId;
 
-    const { message, history = [] } = await request.json();
+    const body = await validateJsonBody(request, agentMessageSchema, apiErrorResponseOptions);
+    if (!body.success) return body.response;
+
+    const { message, history } = body.data;
     const model = "claude-sonnet-4-6";
     const maxTokens = 8192;
-
-    if (!message) {
-      return Response.json({ success: false, error: "Message is required" }, { status: 400 });
-    }
 
     await spendCredits(userId, 1, "ai_agent_message", { route: "/api/ai/agent" });
 
     const messages: Anthropic.MessageParam[] = [
-      ...history.map((msg: any) => ({ role: msg.role, content: msg.content })),
+      ...history.map((msg) => ({ role: msg.role, content: msg.content })),
       { role: "user", content: message },
     ];
 

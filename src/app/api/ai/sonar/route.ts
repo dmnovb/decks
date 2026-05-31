@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import { verifyToken } from "@/lib/auth/helpers";
+import { apiErrorResponseOptions, nonEmptyString, validateJsonBody } from "@/lib/api/validation";
+import { z } from "zod";
 import {
   creditsRequiredResponse,
   InsufficientCreditsError,
@@ -13,6 +15,11 @@ const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
 const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 2048;
 const TEMPERATURE = 0.7;
+
+const sonarPromptSchema = z.object({
+  prompt: nonEmptyString("prompt"),
+  system: z.string().trim().optional(),
+});
 
 async function refundFailedAiRequest(userId: string) {
   try {
@@ -30,12 +37,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json().catch(() => ({}));
-    const { prompt, system } = body || {};
+    const body = await validateJsonBody(request, sonarPromptSchema, apiErrorResponseOptions);
+    if (!body.success) return body.response;
 
-    if (!prompt || typeof prompt !== "string") {
-      return Response.json({ success: false, error: "prompt is required" }, { status: 400 });
-    }
+    const { prompt, system } = body.data;
 
     await spendCredits(payload.userId, 1, "ai_sonar", { route: "/api/ai/sonar" });
 

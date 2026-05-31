@@ -1,23 +1,22 @@
 import { createUser, generateToken, getUserByEmail } from "@/lib/auth/helpers";
+import { validateJsonBody } from "@/lib/api/validation";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
+import { z } from "zod";
+
+const registerSchema = z.object({
+  name: z.string().trim().optional().nullable(),
+  email: z.string().trim().email("Invalid email format"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, password, email } = await request.json();
+    const body = await validateJsonBody(request, registerSchema);
+    if (!body.success) return body.response;
 
-    if (!email || !password) {
-      return Response.json({ message: "Email and password are required" }, { status: 400 });
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return Response.json({ message: "Invalid email format" }, { status: 400 });
-    }
-
-    if (password.length < 8) {
-      return Response.json({ message: "Password must be at least 8 characters" }, { status: 400 });
-    }
+    const { password, email } = body.data;
+    const name = body.data.name ?? "";
 
     const existingUser = await getUserByEmail(email);
 

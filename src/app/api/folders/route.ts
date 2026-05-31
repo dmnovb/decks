@@ -1,7 +1,31 @@
 import prisma from "@/lib/prisma";
+import { nonEmptyString, optionalId, optionalString, validateJsonBody } from "@/lib/api/validation";
 import { verifyToken } from "@/lib/auth/helpers";
 import { validateOptionalFolder } from "@/lib/ownership";
 import { NextRequest } from "next/server";
+import { z } from "zod";
+
+const tagsSchema = z.array(z.string().trim().min(1, "Tags must be non-empty strings"));
+
+const createFolderSchema = z.object({
+  title: nonEmptyString("Folder title"),
+  description: optionalString,
+  tags: tagsSchema.optional(),
+  parentId: optionalId,
+});
+
+const deleteFolderSchema = z.object({
+  id: nonEmptyString("Folder ID"),
+  mode: z.enum(["orphan", "cascade"]).default("orphan"),
+});
+
+const updateFolderSchema = z.object({
+  id: nonEmptyString("Folder ID"),
+  title: nonEmptyString("Folder title").optional(),
+  description: optionalString,
+  tags: tagsSchema.optional(),
+  parentId: optionalId,
+});
 
 function getAuthenticatedUserId(request: NextRequest): string | null {
   const token = request.cookies.get("auth-token")?.value;
@@ -35,11 +59,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { title, description, tags, parentId } = await request.json();
+    const body = await validateJsonBody(request, createFolderSchema);
+    if (!body.success) return body.response;
 
-    if (!title || typeof title !== "string") {
-      return new Response("Folder title is required", { status: 400 });
-    }
+    const { title, description, tags, parentId } = body.data;
 
     const parentValidation = await validateOptionalFolder(parentId, userId);
     if (parentValidation) {
@@ -49,7 +72,7 @@ export async function POST(request: NextRequest) {
     }
 
     const folder = await prisma.folder.create({
-      data: { title, description, tags: tags || [], parentId: parentId || null, userId },
+      data: { title, description, tags: tags ?? [], parentId: parentId ?? null, userId },
     });
 
     return new Response(JSON.stringify(folder), { status: 201 });
@@ -91,11 +114,10 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    const { id, mode = "orphan" } = await request.json();
+    const body = await validateJsonBody(request, deleteFolderSchema);
+    if (!body.success) return body.response;
 
-    if (!id) {
-      return new Response("Folder ID is required", { status: 400 });
-    }
+    const { id, mode } = body.data;
 
     const folder = await prisma.folder.findFirst({ where: { id, userId } });
     if (!folder) {
@@ -127,22 +149,17 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const { id, title, description, tags, parentId } = await request.json();
+    const body = await validateJsonBody(request, updateFolderSchema);
+    if (!body.success) return body.response;
 
-    if (!id) {
-      return new Response("Folder ID is required", { status: 400 });
-    }
+    const { id, title, description, tags, parentId } = body.data;
 
     const folder = await prisma.folder.findFirst({ where: { id, userId } });
     if (!folder) {
       return new Response("Folder not found", { status: 404 });
     }
 
-    const normalizedParentId =
-      parentId === undefined || parentId === null || parentId === "" ? null : parentId;
-    if (normalizedParentId && typeof normalizedParentId !== "string") {
-      return new Response("Parent folder ID must be a string", { status: 400 });
-    }
+    const normalizedParentId = parentId ?? null;
 
     const parentFolder = normalizedParentId
       ? await prisma.folder.findFirst({

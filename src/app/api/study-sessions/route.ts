@@ -1,18 +1,23 @@
 import prisma from "@/lib/prisma";
+import { nonEmptyString, validateJsonBody } from "@/lib/api/validation";
 import { verifyToken } from "@/lib/auth/helpers";
 import { NextRequest } from "next/server";
+import { z } from "zod";
+
+const createStudySessionSchema = z.object({
+  deckId: nonEmptyString("Deck ID"),
+  cardIds: z.array(nonEmptyString("Card ID")).min(1, "Session cards are required"),
+});
+
+const completeStudySessionSchema = z.object({
+  id: nonEmptyString("Session ID"),
+});
 
 function getAuthenticatedUserId(request: NextRequest): string | null {
   const token = request.cookies.get("auth-token")?.value;
   if (!token) return null;
   const payload = verifyToken(token);
   return payload?.userId ?? null;
-}
-
-function parseCardIds(value: unknown): string[] | null {
-  if (!Array.isArray(value) || value.length === 0) return null;
-  const cardIds = value.filter((id): id is string => typeof id === "string" && id.length > 0);
-  return cardIds.length === value.length ? [...new Set(cardIds)] : null;
 }
 
 export async function POST(request: NextRequest) {
@@ -22,16 +27,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { deckId, cardIds: rawCardIds } = await request.json().catch(() => ({}));
-    const cardIds = parseCardIds(rawCardIds);
+    const body = await validateJsonBody(request, createStudySessionSchema);
+    if (!body.success) return body.response;
 
-    if (typeof deckId !== "string" || !deckId) {
-      return Response.json({ message: "Deck ID is required" }, { status: 400 });
-    }
-
-    if (!cardIds) {
-      return Response.json({ message: "Session cards are required" }, { status: 400 });
-    }
+    const { deckId } = body.data;
+    const cardIds = [...new Set(body.data.cardIds)];
 
     const deck = await prisma.deck.findFirst({
       where: { id: deckId, userId },
@@ -81,11 +81,10 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const { id } = await request.json().catch(() => ({}));
+    const body = await validateJsonBody(request, completeStudySessionSchema);
+    if (!body.success) return body.response;
 
-    if (typeof id !== "string" || !id) {
-      return Response.json({ message: "Session ID is required" }, { status: 400 });
-    }
+    const { id } = body.data;
 
     const session = await prisma.studySession.findFirst({
       where: { id, userId },
@@ -108,9 +107,7 @@ export async function PATCH(request: NextRequest) {
 
     const correctCount = reviews.filter((review) => review.quality >= 3).length;
     const wrongCount = reviews.length - correctCount;
-    const totalTime = Math.round(
-      reviews.reduce((sum, review) => sum + review.timeSpent, 0) / 1000,
-    );
+    const totalTime = Math.round(reviews.reduce((sum, review) => sum + review.timeSpent, 0) / 1000);
 
     const updated = await prisma.studySession.update({
       where: { id },

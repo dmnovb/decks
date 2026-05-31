@@ -1,24 +1,31 @@
 import prisma from "@/lib/prisma";
+import { nonEmptyString, validateJsonBody } from "@/lib/api/validation";
 import { verifyToken } from "@/lib/auth/helpers";
 import { sm2 } from "@/utils/sm2";
 import { NextRequest } from "next/server";
+import { z } from "zod";
+
+const createCardReviewSchema = z.object({
+  sessionId: nonEmptyString("Session ID"),
+  flashcardId: nonEmptyString("Flashcard ID"),
+  quality: z
+    .number()
+    .int("Quality must be an integer from 0 to 5")
+    .min(0, "Quality must be an integer from 0 to 5")
+    .max(5, "Quality must be an integer from 0 to 5"),
+  timeSpent: z
+    .number()
+    .finite()
+    .nonnegative("Time spent must be a non-negative number")
+    .optional()
+    .default(0),
+});
 
 function getAuthenticatedUserId(request: NextRequest): string | null {
   const token = request.cookies.get("auth-token")?.value;
   if (!token) return null;
   const payload = verifyToken(token);
   return payload?.userId ?? null;
-}
-
-function toQuality(value: unknown) {
-  const quality = Number(value);
-  return Number.isInteger(quality) && quality >= 0 && quality <= 5 ? quality : null;
-}
-
-function toNonNegativeInt(value: unknown) {
-  const number = Number(value);
-  if (!Number.isFinite(number) || number < 0) return 0;
-  return Math.round(number);
 }
 
 export async function POST(request: NextRequest) {
@@ -28,22 +35,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { sessionId, flashcardId, quality: rawQuality, timeSpent } = await request
-      .json()
-      .catch(() => ({}));
-    const quality = toQuality(rawQuality);
+    const body = await validateJsonBody(request, createCardReviewSchema);
+    if (!body.success) return body.response;
 
-    if (typeof sessionId !== "string" || !sessionId) {
-      return Response.json({ message: "Session ID is required" }, { status: 400 });
-    }
-
-    if (typeof flashcardId !== "string" || !flashcardId) {
-      return Response.json({ message: "Flashcard ID is required" }, { status: 400 });
-    }
-
-    if (quality === null) {
-      return Response.json({ message: "Quality must be an integer from 0 to 5" }, { status: 400 });
-    }
+    const { sessionId, flashcardId, quality, timeSpent } = body.data;
 
     const session = await prisma.studySession.findFirst({
       where: { id: sessionId, userId, completedAt: null },
@@ -59,7 +54,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (!flashcard) {
-      return Response.json({ message: "Flashcard not found in this session deck" }, { status: 404 });
+      return Response.json(
+        { message: "Flashcard not found in this session deck" },
+        { status: 404 },
+      );
     }
 
     const { interval, repetitions, easeFactor } = sm2(
@@ -77,7 +75,7 @@ export async function POST(request: NextRequest) {
           sessionId,
           flashcardId,
           quality,
-          timeSpent: toNonNegativeInt(timeSpent),
+          timeSpent: Math.round(timeSpent),
         },
       });
 

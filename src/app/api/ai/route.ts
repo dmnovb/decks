@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import { verifyToken } from "@/lib/auth/helpers";
+import { apiErrorResponseOptions, nonEmptyString, validateJsonBody } from "@/lib/api/validation";
+import { z } from "zod";
 import {
   creditsRequiredResponse,
   InsufficientCreditsError,
@@ -13,6 +15,18 @@ const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
 const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 2048;
 const TEMPERATURE = 0.7;
+
+const historyMessageSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: nonEmptyString("Message content"),
+});
+
+const aiMessageSchema = z.object({
+  message: nonEmptyString("Message"),
+  systemPrompt: z.string().trim().optional(),
+  context: z.string().trim().optional(),
+  history: z.array(historyMessageSchema).optional().default([]),
+});
 
 function getAuthenticatedUserId(request: NextRequest): string | null {
   const token = request.cookies.get("auth-token")?.value;
@@ -36,11 +50,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { message, systemPrompt, context, history } = await request.json();
+    const body = await validateJsonBody(request, aiMessageSchema, apiErrorResponseOptions);
+    if (!body.success) return body.response;
 
-    if (!message) {
-      return Response.json({ success: false, error: "Message is required" }, { status: 400 });
-    }
+    const { message, systemPrompt, context, history } = body.data;
 
     await spendCredits(userId, 1, "ai_message", { route: "/api/ai", method: "POST" });
 
@@ -49,10 +62,8 @@ export async function POST(request: NextRequest) {
     if (context) system += `Context: ${context}\n\n`;
 
     const messages: Anthropic.MessageParam[] = [];
-    if (history && Array.isArray(history)) {
-      for (const msg of history) {
-        messages.push({ role: msg.role, content: msg.content });
-      }
+    for (const msg of history) {
+      messages.push({ role: msg.role, content: msg.content });
     }
     messages.push({ role: "user", content: message });
 
