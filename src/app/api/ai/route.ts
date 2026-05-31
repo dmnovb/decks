@@ -1,6 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import { verifyToken } from "@/lib/auth/helpers";
+import {
+  creditsRequiredResponse,
+  InsufficientCreditsError,
+  refundCredits,
+  spendCredits,
+} from "@/lib/credits";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
 
@@ -15,24 +21,28 @@ function getAuthenticatedUserId(request: NextRequest): string | null {
   return payload?.userId ?? null;
 }
 
+async function refundFailedAiRequest(userId: string, method: "GET" | "POST") {
+  try {
+    await refundCredits(userId, 1, "ai_message_failed", { route: "/api/ai", method });
+  } catch (error) {
+    console.error("Failed to refund credits:", error);
+  }
+}
+
 export async function POST(request: NextRequest) {
   const userId = getAuthenticatedUserId(request);
   if (!userId) {
-    return Response.json(
-      { success: false, error: "Authentication required" },
-      { status: 401 },
-    );
+    return Response.json({ success: false, error: "Authentication required" }, { status: 401 });
   }
 
   try {
     const { message, systemPrompt, context, history } = await request.json();
 
     if (!message) {
-      return Response.json(
-        { success: false, error: "Message is required" },
-        { status: 400 },
-      );
+      return Response.json({ success: false, error: "Message is required" }, { status: 400 });
     }
+
+    await spendCredits(userId, 1, "ai_message", { route: "/api/ai", method: "POST" });
 
     let system = "";
     if (systemPrompt) system += `System Instructions: ${systemPrompt}\n\n`;
@@ -46,16 +56,21 @@ export async function POST(request: NextRequest) {
     }
     messages.push({ role: "user", content: message });
 
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: MAX_TOKENS,
-      system: system || undefined,
-      messages,
-      temperature: TEMPERATURE,
-    });
+    let response;
+    try {
+      response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        system: system || undefined,
+        messages,
+        temperature: TEMPERATURE,
+      });
+    } catch (error) {
+      await refundFailedAiRequest(userId, "POST");
+      throw error;
+    }
 
-    const text =
-      response.content[0].type === "text" ? response.content[0].text : "";
+    const text = response.content[0].type === "text" ? response.content[0].text : "";
 
     return Response.json({
       success: true,
@@ -63,34 +78,31 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+
     console.error("Claude API Error:", error);
-    return Response.json(
-      { success: false, error: "Failed to process request" },
-      { status: 500 },
-    );
+    return Response.json({ success: false, error: "Failed to process request" }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
   const userId = getAuthenticatedUserId(request);
   if (!userId) {
-    return Response.json(
-      { success: false, error: "Authentication required" },
-      { status: 401 },
-    );
+    return Response.json({ success: false, error: "Authentication required" }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
   const message = searchParams.get("message");
 
   if (!message) {
-    return Response.json(
-      { success: false, error: "Message is required" },
-      { status: 400 },
-    );
+    return Response.json({ success: false, error: "Message is required" }, { status: 400 });
   }
 
   try {
+    await spendCredits(userId, 1, "ai_message", { route: "/api/ai", method: "GET" });
+
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -102,19 +114,15 @@ export async function GET(request: NextRequest) {
           });
 
           for await (const chunk of stream) {
-            if (
-              chunk.type === "content_block_delta" &&
-              chunk.delta.type === "text_delta"
-            ) {
+            if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
               controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({ text: chunk.delta.text })}\n\n`,
-                ),
+                encoder.encode(`data: ${JSON.stringify({ text: chunk.delta.text })}\n\n`),
               );
             }
           }
           controller.close();
         } catch (error) {
+          await refundFailedAiRequest(userId, "GET");
           controller.error(error);
         }
       },
@@ -128,10 +136,11 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+
     console.error("Streaming Error:", error);
-    return Response.json(
-      { success: false, error: "Failed to process request" },
-      { status: 500 },
-    );
+    return Response.json({ success: false, error: "Failed to process request" }, { status: 500 });
   }
 }

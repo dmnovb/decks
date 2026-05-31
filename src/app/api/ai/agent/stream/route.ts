@@ -3,8 +3,24 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
 import { getOwnedOptionalFolderId } from "@/lib/ownership";
+import {
+  creditsRequiredResponse,
+  InsufficientCreditsError,
+  refundCredits,
+  spendCredits,
+} from "@/lib/credits";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY!, timeout: 60000, maxRetries: 0 });
+
+async function refundFailedAgentStreamRequest(userId: string) {
+  try {
+    await refundCredits(userId, 1, "ai_agent_stream_message_failed", {
+      route: "/api/ai/agent/stream",
+    });
+  } catch (error) {
+    console.error("Failed to refund credits:", error);
+  }
+}
 
 const tools: Anthropic.Tool[] = [
   {
@@ -68,7 +84,10 @@ const tools: Anthropic.Tool[] = [
         title: { type: "string", description: "The title of the deck" },
         description: { type: "string", description: "A brief description of the deck" },
         category: { type: "string", description: "The category or subject" },
-        folderId: { type: "string", description: "The ID of a folder to place the deck in (optional)" },
+        folderId: {
+          type: "string",
+          description: "The ID of a folder to place the deck in (optional)",
+        },
         flashcards: {
           type: "array",
           description: "Array of flashcards to create",
@@ -134,8 +153,7 @@ const tools: Anthropic.Tool[] = [
   {
     type: "custom" as const,
     name: "move_deck_to_folder",
-    description:
-      "Moves a deck into a folder, or back to the top level if folderId is null.",
+    description: "Moves a deck into a folder, or back to the top level if folderId is null.",
     input_schema: {
       type: "object",
       properties: {
@@ -178,7 +196,13 @@ async function executeFunctions(functionName: string, args: any, userId: string)
       }
 
       const deck = await prisma.deck.create({
-        data: { title: args.title, description: args.description, category: args.category, folderId, userId },
+        data: {
+          title: args.title,
+          description: args.description,
+          category: args.category,
+          folderId,
+          userId,
+        },
       });
       return {
         success: true,
@@ -365,6 +389,8 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: false, error: "Message is required" }, { status: 400 });
     }
 
+    await spendCredits(userId, 1, "ai_agent_stream_message", { route: "/api/ai/agent/stream" });
+
     const userMemory = await prisma.userMemory.findUnique({ where: { userId } });
 
     const messages: Anthropic.MessageParam[] = [
@@ -404,7 +430,9 @@ ${memorySection}`;
               {
                 model,
                 max_tokens: maxTokens,
-                system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
+                system: [
+                  { type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } },
+                ],
                 messages: currentMessages,
                 tools,
                 temperature: 0.3,
@@ -474,9 +502,14 @@ ${memorySection}`;
             request.signal.aborted;
           if (!isDisconnect) {
             console.error("Streaming error:", error);
+            await refundFailedAgentStreamRequest(userId);
             sendEvent(controller, "error", { error: "An error occurred" });
           }
-          try { controller.close(); } catch { /* already closed */ }
+          try {
+            controller.close();
+          } catch {
+            /* already closed */
+          }
         }
       },
     });
@@ -489,6 +522,10 @@ ${memorySection}`;
       },
     });
   } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return creditsRequiredResponse(error);
+    }
+
     console.error("Agent Stream API Error:", error);
     return Response.json(
       { success: false, error: (error as Error).message || "Failed to process request" },
