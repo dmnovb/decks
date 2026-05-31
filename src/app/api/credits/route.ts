@@ -15,14 +15,19 @@ export async function GET(request: NextRequest) {
     return Response.json({ success: false, error: "Authentication required" }, { status: 401 });
   }
 
-  const account = await getOrCreateCreditAccount(userId);
+  try {
+    const account = await getOrCreateCreditAccount(userId);
 
-  return Response.json({
-    success: true,
-    credits: {
-      balance: account.balance,
-      totalGranted: account.totalGranted,
-      totalSpent: account.totalSpent,
-    },
-  });
+    return Response.json({
+      success: true,
+      credits: {
+        balance: account.balance,
+        totalGranted: account.totalGranted,
+        totalSpent: account.totalSpent,
+      },
+    });
+  } catch (error) {
+    console.error("Credits API Error:", error);
+    return Response.json({ success: false, error: "Failed to load credits" }, { status: 500 });
+  }
 }

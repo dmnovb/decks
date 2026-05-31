@@ -3,16 +3,28 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
 import { getOwnedOptionalFolderId } from "@/lib/ownership";
-import { creditsRequiredResponse, InsufficientCreditsError, spendCredits } from "@/lib/credits";
+import {
+  creditsRequiredResponse,
+  InsufficientCreditsError,
+  refundCredits,
+  spendCredits,
+} from "@/lib/credits";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
+
+async function refundFailedAgentRequest(userId: string) {
+  try {
+    await refundCredits(userId, 1, "ai_agent_message_failed", { route: "/api/ai/agent" });
+  } catch (error) {
+    console.error("Failed to refund credits:", error);
+  }
+}
 
 const tools: Anthropic.Tool[] = [
   {
     type: "custom" as const,
     name: "create_deck",
-    description:
-      "Creates a new flashcard deck for the user, optionally inside a folder.",
+    description: "Creates a new flashcard deck for the user, optionally inside a folder.",
     input_schema: {
       type: "object",
       properties: {
@@ -23,8 +35,7 @@ const tools: Anthropic.Tool[] = [
         },
         category: {
           type: "string",
-          description:
-            'The category or subject (e.g., "Spanish", "Japanese", "Korean")',
+          description: 'The category or subject (e.g., "Spanish", "Japanese", "Korean")',
         },
         folderId: {
           type: "string",
@@ -145,8 +156,7 @@ const tools: Anthropic.Tool[] = [
         },
         parentId: {
           type: "string",
-          description:
-            "The ID of a parent folder to nest this folder inside (optional)",
+          description: "The ID of a parent folder to nest this folder inside (optional)",
         },
       },
       required: ["title"],
@@ -162,16 +172,14 @@ const tools: Anthropic.Tool[] = [
   {
     type: "custom" as const,
     name: "move_deck_to_folder",
-    description:
-      "Moves a deck into a folder, or back to the top level if folderId is null.",
+    description: "Moves a deck into a folder, or back to the top level if folderId is null.",
     input_schema: {
       type: "object",
       properties: {
         deckId: { type: "string", description: "The ID of the deck to move" },
         folderId: {
           type: ["string", "null"],
-          description:
-            "The ID of the folder to move the deck into, or null for top level",
+          description: "The ID of the folder to move the deck into, or null for top level",
         },
       },
       required: ["deckId", "folderId"],
@@ -179,11 +187,7 @@ const tools: Anthropic.Tool[] = [
   },
 ];
 
-async function executeFunctions(
-  functionName: string,
-  args: any,
-  userId: string,
-) {
+async function executeFunctions(functionName: string, args: any, userId: string) {
   switch (functionName) {
     case "create_deck": {
       let folderId: string | null;
@@ -212,8 +216,7 @@ async function executeFunctions(
       const ownedDeck = await prisma.deck.findFirst({
         where: { id: args.deckId, userId },
       });
-      if (!ownedDeck)
-        return { success: false, error: "Deck not found or access denied" };
+      if (!ownedDeck) return { success: false, error: "Deck not found or access denied" };
       const flashcards = await prisma.flashcard.createMany({
         data: args.flashcards.map((card: any) => ({
           ...card,
@@ -338,8 +341,7 @@ async function executeFunctions(
       const ownedDeck = await prisma.deck.findFirst({
         where: { id: args.deckId, userId },
       });
-      if (!ownedDeck)
-        return { success: false, error: "Deck not found or access denied" };
+      if (!ownedDeck) return { success: false, error: "Deck not found or access denied" };
 
       let folderId: string | null;
       try {
@@ -368,18 +370,12 @@ export async function POST(request: NextRequest) {
   try {
     const token = request.cookies.get("auth-token")?.value;
     if (!token) {
-      return Response.json(
-        { success: false, error: "Authentication required" },
-        { status: 401 },
-      );
+      return Response.json({ success: false, error: "Authentication required" }, { status: 401 });
     }
 
     const payload = verifyToken(token) as { userId: string } | null;
     if (!payload) {
-      return Response.json(
-        { success: false, error: "Invalid token" },
-        { status: 401 },
-      );
+      return Response.json({ success: false, error: "Invalid token" }, { status: 401 });
     }
 
     const userId = payload.userId;
@@ -389,10 +385,7 @@ export async function POST(request: NextRequest) {
     const maxTokens = 8192;
 
     if (!message) {
-      return Response.json(
-        { success: false, error: "Message is required" },
-        { status: 400 },
-      );
+      return Response.json({ success: false, error: "Message is required" }, { status: 400 });
     }
 
     await spendCredits(userId, 1, "ai_agent_message", { route: "/api/ai/agent" });
@@ -408,14 +401,27 @@ export async function POST(request: NextRequest) {
 
 ${process.env.AI_SYSTEM_PROMPT_ACE!}`;
 
-    let response = await anthropic.messages.create({
-      model,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages,
-      tools,
-      temperature: 0.3,
-    });
+    let shouldRefundOnAiFailure = true;
+    const createMessage = async () => {
+      try {
+        return await anthropic.messages.create({
+          model,
+          max_tokens: maxTokens,
+          system: systemPrompt,
+          messages,
+          tools,
+          temperature: 0.3,
+        });
+      } catch (error) {
+        if (shouldRefundOnAiFailure) {
+          shouldRefundOnAiFailure = false;
+          await refundFailedAgentRequest(userId);
+        }
+        throw error;
+      }
+    };
+
+    let response = await createMessage();
 
     // Handle tool call loop
     while (response.stop_reason === "tool_use") {
@@ -450,19 +456,13 @@ ${process.env.AI_SYSTEM_PROMPT_ACE!}`;
 
       messages.push({ role: "user", content: toolResults });
 
-      response = await anthropic.messages.create({
-        model,
-        max_tokens: maxTokens,
-        system: systemPrompt,
-        messages,
-        tools,
-        temperature: 0.3,
-      });
+      response = await createMessage();
     }
 
+    shouldRefundOnAiFailure = false;
+
     const text =
-      response.content.find((b): b is Anthropic.TextBlock => b.type === "text")
-        ?.text ?? "";
+      response.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text ?? "";
 
     return Response.json({
       success: true,
@@ -476,9 +476,6 @@ ${process.env.AI_SYSTEM_PROMPT_ACE!}`;
     }
 
     console.error("Agent API Error:", error);
-    return Response.json(
-      { success: false, error: "Failed to process request" },
-      { status: 500 },
-    );
+    return Response.json({ success: false, error: "Failed to process request" }, { status: 500 });
   }
 }

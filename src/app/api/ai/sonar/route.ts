@@ -1,13 +1,26 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import { verifyToken } from "@/lib/auth/helpers";
-import { creditsRequiredResponse, InsufficientCreditsError, spendCredits } from "@/lib/credits";
+import {
+  creditsRequiredResponse,
+  InsufficientCreditsError,
+  refundCredits,
+  spendCredits,
+} from "@/lib/credits";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
 
 const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 2048;
 const TEMPERATURE = 0.7;
+
+async function refundFailedAiRequest(userId: string) {
+  try {
+    await refundCredits(userId, 1, "ai_sonar_failed", { route: "/api/ai/sonar" });
+  } catch (error) {
+    console.error("Failed to refund credits:", error);
+  }
+}
 
 export async function POST(request: NextRequest) {
   const token = request.cookies.get("auth-token")?.value;
@@ -26,13 +39,19 @@ export async function POST(request: NextRequest) {
 
     await spendCredits(payload.userId, 1, "ai_sonar", { route: "/api/ai/sonar" });
 
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: MAX_TOKENS,
-      system,
-      temperature: TEMPERATURE,
-      messages: [{ role: "user", content: prompt }],
-    });
+    let response;
+    try {
+      response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        system,
+        temperature: TEMPERATURE,
+        messages: [{ role: "user", content: prompt }],
+      });
+    } catch (error) {
+      await refundFailedAiRequest(payload.userId);
+      throw error;
+    }
 
     const text = response.content[0].type === "text" ? response.content[0].text : "";
 

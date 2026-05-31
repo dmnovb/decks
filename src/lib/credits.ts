@@ -1,3 +1,4 @@
+import { Prisma } from "@/generated/prisma";
 import prisma from "@/lib/prisma";
 
 export const INITIAL_ACCOUNT_CREDITS = 50;
@@ -43,7 +44,7 @@ export async function spendCredits(
     throw new Error("Credit amount must be a positive integer");
   }
 
-  await getOrCreateCreditAccount(userId);
+  const account = await getOrCreateCreditAccount(userId);
 
   return prisma.$transaction(async (tx) => {
     const updated = await tx.creditAccount.updateMany({
@@ -62,22 +63,17 @@ export async function spendCredits(
       throw new InsufficientCreditsError(account?.balance ?? 0, amount);
     }
 
-    const account = await tx.creditAccount.findUniqueOrThrow({
-      where: { userId },
-      select: { id: true, balance: true },
-    });
-
     await tx.creditTransaction.create({
       data: {
         creditAccountId: account.id,
         amount: -amount,
         type: "SPEND",
         reason,
-        metadata: metadata === undefined ? undefined : (metadata as any),
+        metadata: metadata === undefined ? undefined : (metadata as Prisma.InputJsonValue),
       },
     });
 
-    return account;
+    return { ...account, balance: account.balance - amount };
   });
 }
 
@@ -91,22 +87,25 @@ export async function refundCredits(
     throw new Error("Credit amount must be a positive integer");
   }
 
-  const account = await getOrCreateCreditAccount(userId);
+  await getOrCreateCreditAccount(userId);
 
   return prisma.$transaction(async (tx) => {
     const updated = await tx.creditAccount.update({
       where: { userId },
-      data: { balance: { increment: amount } },
+      data: {
+        balance: { increment: amount },
+        totalSpent: { decrement: amount },
+      },
       select: { id: true, balance: true },
     });
 
     await tx.creditTransaction.create({
       data: {
-        creditAccountId: account.id,
+        creditAccountId: updated.id,
         amount,
         type: "REFUND",
         reason,
-        metadata: metadata === undefined ? undefined : (metadata as any),
+        metadata: metadata === undefined ? undefined : (metadata as Prisma.InputJsonValue),
       },
     });
 

@@ -2,9 +2,27 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
-import { creditsRequiredResponse, InsufficientCreditsError, spendCredits } from "@/lib/credits";
+import {
+  creditsRequiredResponse,
+  InsufficientCreditsError,
+  refundCredits,
+  spendCredits,
+} from "@/lib/credits";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
+
+async function refundFailedGeneration(
+  userId: string,
+  amount: number,
+  deckId: string,
+  count: number,
+) {
+  try {
+    await refundCredits(userId, amount, "generate_flashcards_failed", { deckId, count });
+  } catch (error) {
+    console.error("Failed to refund credits:", error);
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -52,11 +70,17 @@ Return ONLY a valid JSON array with this exact structure (no markdown, no extra 
 
 Make the flashcards educational, clear, and appropriate for language learning.`;
 
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 4096,
-      messages: [{ role: "user", content: fullPrompt }],
-    });
+    let response;
+    try {
+      response = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 4096,
+        messages: [{ role: "user", content: fullPrompt }],
+      });
+    } catch (error) {
+      await refundFailedGeneration(payload.userId, count, deckId, count);
+      throw error;
+    }
 
     const responseText = response.content[0].type === "text" ? response.content[0].text : "";
 
@@ -69,6 +93,7 @@ Make the flashcards educational, clear, and appropriate for language learning.`;
       flashcardsData = JSON.parse(cleanedResponse);
     } catch {
       console.error("Failed to parse AI response:", responseText);
+      await refundFailedGeneration(payload.userId, count, deckId, count);
       return Response.json(
         { success: false, error: "Failed to parse AI response" },
         { status: 500 },
