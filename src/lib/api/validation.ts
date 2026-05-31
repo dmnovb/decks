@@ -2,16 +2,36 @@ import { z } from "zod";
 
 export type ValidatedJson<T> = { success: true; data: T } | { success: false; response: Response };
 
+interface ValidationResponseOptions {
+  errorKey?: "message" | "error";
+  includeSuccess?: boolean;
+}
+
+export const apiErrorResponseOptions = {
+  errorKey: "error",
+  includeSuccess: true,
+} satisfies ValidationResponseOptions;
+
 export function validationErrorResponse(
   message: string,
   errors?: ReturnType<typeof z.flattenError>,
+  options: ValidationResponseOptions = {},
 ) {
-  return Response.json({ message, ...(errors ? { errors } : {}) }, { status: 400 });
+  const errorKey = options.errorKey ?? "message";
+  return Response.json(
+    {
+      ...(options.includeSuccess ? { success: false } : {}),
+      [errorKey]: message,
+      ...(errors ? { errors } : {}),
+    },
+    { status: 400 },
+  );
 }
 
 export async function validateJsonBody<T>(
   request: Request,
   schema: z.ZodType<T>,
+  options: ValidationResponseOptions = {},
 ): Promise<ValidatedJson<T>> {
   let body: unknown;
 
@@ -20,7 +40,7 @@ export async function validateJsonBody<T>(
   } catch {
     return {
       success: false,
-      response: validationErrorResponse("Malformed JSON body"),
+      response: validationErrorResponse("Malformed JSON body", undefined, options),
     };
   }
 
@@ -28,7 +48,11 @@ export async function validateJsonBody<T>(
   if (!result.success) {
     return {
       success: false,
-      response: validationErrorResponse("Invalid request body", z.flattenError(result.error)),
+      response: validationErrorResponse(
+        "Invalid request body",
+        z.flattenError(result.error),
+        options,
+      ),
     };
   }
 

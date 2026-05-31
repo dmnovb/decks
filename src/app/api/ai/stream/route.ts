@@ -1,12 +1,19 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import { verifyToken } from "@/lib/auth/helpers";
+import { apiErrorResponseOptions, nonEmptyString, validateJsonBody } from "@/lib/api/validation";
+import { z } from "zod";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
 
 const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 2048;
 const TEMPERATURE = 0.7;
+
+const streamPromptSchema = z.object({
+  prompt: nonEmptyString("prompt"),
+  system: z.string().trim().optional(),
+});
 
 function getAuthenticatedUserId(request: NextRequest): string | null {
   const token = request.cookies.get("auth-token")?.value;
@@ -21,12 +28,10 @@ export async function POST(request: NextRequest) {
     return Response.json({ success: false, error: "Authentication required" }, { status: 401 });
   }
 
-  const body = await request.json().catch(() => ({}));
-  const { prompt, system } = body || {};
+  const body = await validateJsonBody(request, streamPromptSchema, apiErrorResponseOptions);
+  if (!body.success) return body.response;
 
-  if (!prompt || typeof prompt !== "string") {
-    return Response.json({ success: false, error: "prompt is required" }, { status: 400 });
-  }
+  const { prompt, system } = body.data;
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({

@@ -5,8 +5,17 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
 import { getOwnedOptionalFolderId } from "@/lib/ownership";
+import { validateJsonBody } from "@/lib/api/validation";
+import { z } from "zod";
 
 const anthropic = createAnthropic({ apiKey: process.env.CLAUDE_KEY! });
+
+const chatBodySchema = z.object({
+  messages: z
+    .array(z.custom<UIMessage>((value) => typeof value === "object" && value !== null))
+    .min(1, "At least one message is required"),
+  conversationId: z.string().trim().min(1).optional(),
+});
 
 function getAuth(request: NextRequest) {
   const token = request.cookies.get("auth-token")?.value;
@@ -21,10 +30,10 @@ export async function POST(request: NextRequest) {
   }
   const userId = auth.userId;
 
-  const { messages, conversationId } = (await request.json()) as {
-    messages: UIMessage[];
-    conversationId?: string;
-  };
+  const body = await validateJsonBody(request, chatBodySchema);
+  if (!body.success) return body.response;
+
+  const { messages, conversationId } = body.data;
 
   const userMemory = await prisma.userMemory.findUnique({ where: { userId } });
 
@@ -58,7 +67,12 @@ ${memorySection}`;
     tools: {
       create_deck: tool({
         description: "Creates a new flashcard deck for the user, optionally inside a folder.",
-        inputSchema: jsonSchema<{ title: string; description?: string; category?: string; folderId?: string }>({
+        inputSchema: jsonSchema<{
+          title: string;
+          description?: string;
+          category?: string;
+          folderId?: string;
+        }>({
           type: "object",
           properties: {
             title: { type: "string", description: "The title of the deck" },
@@ -76,7 +90,13 @@ ${memorySection}`;
             return { success: false, error: (error as Error).message };
           }
           const deck = await prisma.deck.create({
-            data: { title: args.title, description: args.description, category: args.category, folderId, userId },
+            data: {
+              title: args.title,
+              description: args.description,
+              category: args.category,
+              folderId,
+              userId,
+            },
           });
           return { success: true, deckId: deck.id, message: `Created deck "${deck.title}"` };
         },
@@ -84,7 +104,10 @@ ${memorySection}`;
 
       create_flashcards: tool({
         description: "Creates multiple flashcards in a specific deck.",
-        inputSchema: jsonSchema<{ deckId: string; flashcards: { front: string; back: string; notes?: string }[] }>({
+        inputSchema: jsonSchema<{
+          deckId: string;
+          flashcards: { front: string; back: string; notes?: string }[];
+        }>({
           type: "object",
           properties: {
             deckId: { type: "string", description: "The ID of the deck" },
@@ -109,13 +132,23 @@ ${memorySection}`;
           const result = await prisma.flashcard.createMany({
             data: args.flashcards.map((card) => ({ ...card, deckId: args.deckId })),
           });
-          return { success: true, count: result.count, message: `Created ${result.count} flashcards` };
+          return {
+            success: true,
+            count: result.count,
+            message: `Created ${result.count} flashcards`,
+          };
         },
       }),
 
       create_deck_with_flashcards: tool({
         description: "Creates a new deck and populates it with flashcards in one operation.",
-        inputSchema: jsonSchema<{ title: string; description?: string; category?: string; folderId?: string; flashcards: { front: string; back: string; notes?: string }[] }>({
+        inputSchema: jsonSchema<{
+          title: string;
+          description?: string;
+          category?: string;
+          folderId?: string;
+          flashcards: { front: string; back: string; notes?: string }[];
+        }>({
           type: "object",
           properties: {
             title: { type: "string" },
@@ -146,13 +179,21 @@ ${memorySection}`;
           }
           const deck = await prisma.deck.create({
             data: {
-              title: args.title, description: args.description, category: args.category,
-              folderId, userId,
+              title: args.title,
+              description: args.description,
+              category: args.category,
+              folderId,
+              userId,
               flashcards: { create: args.flashcards },
             },
             include: { flashcards: true },
           });
-          return { success: true, deckId: deck.id, flashcardCount: deck.flashcards.length, message: `Created deck "${deck.title}" with ${deck.flashcards.length} flashcards` };
+          return {
+            success: true,
+            deckId: deck.id,
+            flashcardCount: deck.flashcards.length,
+            message: `Created deck "${deck.title}" with ${deck.flashcards.length} flashcards`,
+          };
         },
       }),
 
@@ -168,8 +209,11 @@ ${memorySection}`;
           return {
             success: true,
             decks: decks.map((d) => ({
-              id: d.id, title: d.title, description: d.description,
-              category: d.category, flashcardCount: d._count.flashcards,
+              id: d.id,
+              title: d.title,
+              description: d.description,
+              category: d.category,
+              flashcardCount: d._count.flashcards,
             })),
           };
         },
@@ -187,8 +231,15 @@ ${memorySection}`;
           if (!deck) return { success: false, error: "Deck not found or access denied" };
           const flashcards = await prisma.flashcard.findMany({ where: { deckId: args.deckId } });
           return {
-            success: true, deckTitle: deck.title, count: flashcards.length,
-            flashcards: flashcards.map((f) => ({ id: f.id, front: f.front, back: f.back, notes: f.notes })),
+            success: true,
+            deckTitle: deck.title,
+            count: flashcards.length,
+            flashcards: flashcards.map((f) => ({
+              id: f.id,
+              front: f.front,
+              back: f.back,
+              notes: f.notes,
+            })),
           };
         },
       }),
@@ -214,7 +265,11 @@ ${memorySection}`;
           const folder = await prisma.folder.create({
             data: { title: args.title, description: args.description, parentId, userId },
           });
-          return { success: true, folderId: folder.id, message: `Created folder "${folder.title}"` };
+          return {
+            success: true,
+            folderId: folder.id,
+            message: `Created folder "${folder.title}"`,
+          };
         },
       }),
 
@@ -230,8 +285,12 @@ ${memorySection}`;
           return {
             success: true,
             folders: folders.map((f) => ({
-              id: f.id, title: f.title, description: f.description,
-              parentId: f.parentId, deckCount: f._count.decks, subfolderCount: f._count.children,
+              id: f.id,
+              title: f.title,
+              description: f.description,
+              parentId: f.parentId,
+              deckCount: f._count.decks,
+              subfolderCount: f._count.children,
             })),
           };
         },
@@ -259,16 +318,23 @@ ${memorySection}`;
           }
 
           await prisma.deck.update({ where: { id: args.deckId }, data: { folderId } });
-          return { success: true, message: folderId ? `Moved deck into folder` : `Moved deck to top level` };
+          return {
+            success: true,
+            message: folderId ? `Moved deck into folder` : `Moved deck to top level`,
+          };
         },
       }),
 
       update_memory: tool({
-        description: "Persist important facts about this user. Call whenever you learn something new. Write the full updated memory each time (replaces previous).",
+        description:
+          "Persist important facts about this user. Call whenever you learn something new. Write the full updated memory each time (replaces previous).",
         inputSchema: jsonSchema<{ memory: string }>({
           type: "object",
           properties: {
-            memory: { type: "string", description: "Complete updated memory as concise bullet points." },
+            memory: {
+              type: "string",
+              description: "Complete updated memory as concise bullet points.",
+            },
           },
           required: ["memory"],
         }),
@@ -295,10 +361,11 @@ ${memorySection}`;
 
           const lastUserMsg = messages.filter((m: UIMessage) => m.role === "user").pop();
           if (lastUserMsg) {
-            const userText = lastUserMsg.parts
-              ?.filter((p: any) => p.type === "text")
-              .map((p: any) => p.text)
-              .join("") || "";
+            const userText =
+              lastUserMsg.parts
+                ?.filter((p: any) => p.type === "text")
+                .map((p: any) => p.text)
+                .join("") || "";
             if (userText) {
               await prisma.message.create({
                 data: { conversationId, role: "user", content: userText },

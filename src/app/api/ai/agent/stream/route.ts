@@ -3,8 +3,20 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
 import { getOwnedOptionalFolderId } from "@/lib/ownership";
+import { apiErrorResponseOptions, nonEmptyString, validateJsonBody } from "@/lib/api/validation";
+import { z } from "zod";
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY!, timeout: 60000, maxRetries: 0 });
+
+const agentHistoryMessageSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: nonEmptyString("Message content"),
+});
+
+const agentMessageSchema = z.object({
+  message: nonEmptyString("Message"),
+  history: z.array(agentHistoryMessageSchema).optional().default([]),
+});
 
 const tools: Anthropic.Tool[] = [
   {
@@ -68,7 +80,10 @@ const tools: Anthropic.Tool[] = [
         title: { type: "string", description: "The title of the deck" },
         description: { type: "string", description: "A brief description of the deck" },
         category: { type: "string", description: "The category or subject" },
-        folderId: { type: "string", description: "The ID of a folder to place the deck in (optional)" },
+        folderId: {
+          type: "string",
+          description: "The ID of a folder to place the deck in (optional)",
+        },
         flashcards: {
           type: "array",
           description: "Array of flashcards to create",
@@ -134,8 +149,7 @@ const tools: Anthropic.Tool[] = [
   {
     type: "custom" as const,
     name: "move_deck_to_folder",
-    description:
-      "Moves a deck into a folder, or back to the top level if folderId is null.",
+    description: "Moves a deck into a folder, or back to the top level if folderId is null.",
     input_schema: {
       type: "object",
       properties: {
@@ -178,7 +192,13 @@ async function executeFunctions(functionName: string, args: any, userId: string)
       }
 
       const deck = await prisma.deck.create({
-        data: { title: args.title, description: args.description, category: args.category, folderId, userId },
+        data: {
+          title: args.title,
+          description: args.description,
+          category: args.category,
+          folderId,
+          userId,
+        },
       });
       return {
         success: true,
@@ -357,18 +377,17 @@ export async function POST(request: NextRequest) {
 
     const userId = payload.userId;
 
-    const { message, history = [] } = await request.json();
+    const body = await validateJsonBody(request, agentMessageSchema, apiErrorResponseOptions);
+    if (!body.success) return body.response;
+
+    const { message, history } = body.data;
     const model = "claude-sonnet-4-6";
     const maxTokens = 4096;
-
-    if (!message) {
-      return Response.json({ success: false, error: "Message is required" }, { status: 400 });
-    }
 
     const userMemory = await prisma.userMemory.findUnique({ where: { userId } });
 
     const messages: Anthropic.MessageParam[] = [
-      ...history.map((msg: any) => ({ role: msg.role, content: msg.content })),
+      ...history.map((msg) => ({ role: msg.role, content: msg.content })),
       { role: "user", content: message },
     ];
 
@@ -404,7 +423,9 @@ ${memorySection}`;
               {
                 model,
                 max_tokens: maxTokens,
-                system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
+                system: [
+                  { type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } },
+                ],
                 messages: currentMessages,
                 tools,
                 temperature: 0.3,
@@ -476,7 +497,11 @@ ${memorySection}`;
             console.error("Streaming error:", error);
             sendEvent(controller, "error", { error: "An error occurred" });
           }
-          try { controller.close(); } catch { /* already closed */ }
+          try {
+            controller.close();
+          } catch {
+            /* already closed */
+          }
         }
       },
     });

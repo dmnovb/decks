@@ -1,7 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
-import { nonEmptyString, optionalString, validateJsonBody } from "@/lib/api/validation";
+import {
+  apiErrorResponseOptions,
+  nonEmptyString,
+  optionalString,
+  validateJsonBody,
+} from "@/lib/api/validation";
 import { verifyToken } from "@/lib/auth/helpers";
 import { z } from "zod";
 
@@ -38,7 +43,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: false, error: "Invalid token" }, { status: 401 });
     }
 
-    const body = await validateJsonBody(request, generateFlashcardsSchema);
+    const body = await validateJsonBody(request, generateFlashcardsSchema, apiErrorResponseOptions);
     if (!body.success) return body.response;
 
     const { prompt, deckId, count } = body.data;
