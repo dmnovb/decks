@@ -1,7 +1,28 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
+import { nonEmptyString, optionalString, validateJsonBody } from "@/lib/api/validation";
 import { verifyToken } from "@/lib/auth/helpers";
+import { z } from "zod";
+
+const generateFlashcardsSchema = z.object({
+  prompt: nonEmptyString("Prompt"),
+  deckId: nonEmptyString("Deck ID"),
+  count: z
+    .number()
+    .int("Count must be an integer")
+    .min(1, "Count must be at least 1")
+    .max(50, "Count must be at most 50")
+    .default(10),
+});
+
+const generatedFlashcardSchema = z.object({
+  front: nonEmptyString("Front"),
+  back: nonEmptyString("Back"),
+  notes: optionalString,
+});
+
+const generatedFlashcardsResponseSchema = z.array(generatedFlashcardSchema).min(1);
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
 
@@ -17,16 +38,10 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: false, error: "Invalid token" }, { status: 401 });
     }
 
-    const { prompt, deckId, count: rawCount = 10 } = await request.json();
-    const count = Math.min(Math.max(Number(rawCount) || 10, 1), 50);
+    const body = await validateJsonBody(request, generateFlashcardsSchema);
+    if (!body.success) return body.response;
 
-    if (!prompt) {
-      return Response.json({ success: false, error: "Prompt is required" }, { status: 400 });
-    }
-
-    if (!deckId) {
-      return Response.json({ success: false, error: "Deck ID is required" }, { status: 400 });
-    }
+    const { prompt, deckId, count } = body.data;
 
     const deck = await prisma.deck.findFirst({
       where: { id: deckId, userId: payload.userId },
@@ -57,14 +72,14 @@ Make the flashcards educational, clear, and appropriate for language learning.`;
 
     const responseText = response.content[0].type === "text" ? response.content[0].text : "";
 
-    let flashcardsData;
+    let parsedResponse: unknown;
     try {
       const cleanedResponse = responseText
         .replace(/```json\n?/g, "")
         .replace(/```\n?/g, "")
         .trim();
-      flashcardsData = JSON.parse(cleanedResponse);
-    } catch (e) {
+      parsedResponse = JSON.parse(cleanedResponse);
+    } catch {
       console.error("Failed to parse AI response:", responseText);
       return Response.json(
         { success: false, error: "Failed to parse AI response" },
@@ -72,8 +87,17 @@ Make the flashcards educational, clear, and appropriate for language learning.`;
       );
     }
 
+    const flashcardsResult = generatedFlashcardsResponseSchema.safeParse(parsedResponse);
+    if (!flashcardsResult.success) {
+      console.error("AI response failed validation:", flashcardsResult.error);
+      return Response.json(
+        { success: false, error: "AI response did not match expected flashcard format" },
+        { status: 500 },
+      );
+    }
+
     const createdFlashcards = await prisma.flashcard.createMany({
-      data: flashcardsData.map((card: any) => ({
+      data: flashcardsResult.data.map((card) => ({
         front: card.front,
         back: card.back,
         notes: card.notes || null,

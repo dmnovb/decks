@@ -1,10 +1,20 @@
 import { generateToken, getUserByEmail, verifyPassword } from "@/lib/auth/helpers";
+import { nonEmptyString, validateJsonBody } from "@/lib/api/validation";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
+import { z } from "zod";
+
+const loginSchema = z.object({
+  email: z.string().trim().email("A valid email is required"),
+  password: nonEmptyString("Password"),
+});
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
+    const body = await validateJsonBody(request, loginSchema);
+    if (!body.success) return body.response;
+
+    const { email, password } = body.data;
 
     const user = await getUserByEmail(email);
 

@@ -1,7 +1,34 @@
-import { Flashcard } from "@/generated/prisma";
 import prisma from "@/lib/prisma";
+import { nonEmptyString, optionalString, validateJsonBody } from "@/lib/api/validation";
 import { verifyToken } from "@/lib/auth/helpers";
 import { NextRequest } from "next/server";
+import { z } from "zod";
+
+const createFlashcardSchema = z.object({
+  front: nonEmptyString("Front"),
+  back: nonEmptyString("Back"),
+  notes: optionalString,
+});
+
+const deleteFlashcardSchema = z.object({
+  id: nonEmptyString("Flashcard ID"),
+  deckId: nonEmptyString("Deck ID"),
+});
+
+const updateFlashcardSchema = z
+  .object({
+    id: nonEmptyString("Flashcard ID"),
+    deckId: nonEmptyString("Deck ID"),
+    front: nonEmptyString("Front").optional(),
+    back: nonEmptyString("Back").optional(),
+    notes: optionalString,
+  })
+  .refine(
+    (data) => data.front !== undefined || data.back !== undefined || data.notes !== undefined,
+    {
+      message: "No editable flashcard fields provided",
+    },
+  );
 
 function getAuthenticatedUserId(request: NextRequest): string | null {
   const token = request.cookies.get("auth-token")?.value;
@@ -60,7 +87,10 @@ export async function POST(request: NextRequest) {
       return new Response("Deck not found", { status: 404 });
     }
 
-    const { front, back, notes }: Flashcard = await request.json();
+    const body = await validateJsonBody(request, createFlashcardSchema);
+    if (!body.success) return body.response;
+
+    const { front, back, notes } = body.data;
 
     const flashcard = await prisma.flashcard.create({
       data: {
@@ -85,15 +115,10 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    const { id, deckId } = await request.json();
+    const body = await validateJsonBody(request, deleteFlashcardSchema);
+    if (!body.success) return body.response;
 
-    if (!id) {
-      return new Response("Flashcard ID is required", { status: 400 });
-    }
-
-    if (!deckId) {
-      return new Response("Deck ID is required", { status: 400 });
-    }
+    const { id, deckId } = body.data;
 
     if (!(await verifyDeckOwnership(deckId, userId))) {
       return new Response("Deck not found", { status: 404 });
@@ -126,39 +151,19 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const { id, deckId, front, back, notes } = await request.json();
+    const body = await validateJsonBody(request, updateFlashcardSchema);
+    if (!body.success) return body.response;
 
-    if (!id || !deckId) {
-      return new Response("Flashcard ID and Deck ID are required", { status: 400 });
-    }
+    const { id, deckId, front, back, notes } = body.data;
 
     if (!(await verifyDeckOwnership(deckId, userId))) {
       return new Response("Deck not found", { status: 404 });
     }
 
     const updateData: { front?: string; back?: string; notes?: string | null } = {};
-    if (front !== undefined) {
-      if (typeof front !== "string" || front.trim() === "") {
-        return new Response("Front must be a non-empty string", { status: 400 });
-      }
-      updateData.front = front;
-    }
-    if (back !== undefined) {
-      if (typeof back !== "string" || back.trim() === "") {
-        return new Response("Back must be a non-empty string", { status: 400 });
-      }
-      updateData.back = back;
-    }
-    if (notes !== undefined) {
-      if (notes !== null && typeof notes !== "string") {
-        return new Response("Notes must be a string or null", { status: 400 });
-      }
-      updateData.notes = notes;
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      return new Response("No editable flashcard fields provided", { status: 400 });
-    }
+    if (front !== undefined) updateData.front = front;
+    if (back !== undefined) updateData.back = back;
+    if (notes !== undefined) updateData.notes = notes;
 
     const flashcard = await prisma.flashcard.update({
       where: { id, deckId },
