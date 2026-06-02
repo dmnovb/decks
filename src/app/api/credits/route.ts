@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { verifyToken } from "@/lib/auth/helpers";
 import { getOrCreateCreditAccount } from "@/lib/credits";
+import prisma from "@/lib/prisma";
 
 function getAuthenticatedUserId(request: NextRequest): string | null {
   const token = request.cookies.get("auth-token")?.value;
@@ -17,6 +18,18 @@ export async function GET(request: NextRequest) {
 
   try {
     const account = await getOrCreateCreditAccount(userId);
+    const transactions = await prisma.creditTransaction.findMany({
+      where: { creditAccountId: account.id },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: {
+        id: true,
+        amount: true,
+        type: true,
+        reason: true,
+        createdAt: true,
+      },
+    });
 
     return Response.json({
       success: true,
@@ -25,6 +38,7 @@ export async function GET(request: NextRequest) {
         totalGranted: account.totalGranted,
         totalSpent: account.totalSpent,
       },
+      transactions,
     });
   } catch (error) {
     console.error("Credits API Error:", error);

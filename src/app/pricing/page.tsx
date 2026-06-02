@@ -1,8 +1,12 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { Check, Wand2, MessageSquare, FolderPlus, Sparkles } from "lucide-react";
+import useSWR from "swr";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { CREDIT_PACKAGES, CreditPackage, formatCreditPackagePrice } from "@/lib/credit-packages";
 import { cn } from "@/lib/utils";
 
 // ── Animation variants (matches stats page pattern) ───────────────────────────
@@ -18,33 +22,6 @@ const item = {
 };
 
 // ── Data ──────────────────────────────────────────────────────────────────────
-
-const tiers = [
-  {
-    name: "Starter",
-    credits: 100,
-    price: "1.00",
-    perCredit: "1.0¢",
-    featured: false,
-    note: "Try it out",
-  },
-  {
-    name: "Plus",
-    credits: 500,
-    price: "4.00",
-    perCredit: "0.8¢",
-    featured: true,
-    note: "Best value",
-  },
-  {
-    name: "Max",
-    credits: 2000,
-    price: "12.00",
-    perCredit: "0.6¢",
-    featured: false,
-    note: "Power users",
-  },
-] as const;
 
 const aiActions = [
   {
@@ -82,9 +59,71 @@ const coreFeatures = [
   "Import / export",
 ];
 
+interface CreditsResponse {
+  success: boolean;
+  credits?: {
+    balance: number;
+    totalGranted: number;
+    totalSpent: number;
+  };
+}
+
+const creditsFetcher = async (url: string): Promise<CreditsResponse> => {
+  const response = await fetch(url, { credentials: "include" });
+  if (response.status === 401) return { success: false };
+  if (!response.ok) throw new Error("Failed to load credits");
+  return response.json();
+};
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PricingPage() {
+  const [checkoutPackageId, setCheckoutPackageId] = useState<string | null>(null);
+  const { data, mutate } = useSWR<CreditsResponse>("/api/credits", creditsFetcher, {
+    revalidateOnFocus: false,
+  });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get("checkout");
+    if (checkout === "success") {
+      toast.success("Payment complete. Refreshing your credits.");
+      mutate();
+      window.setTimeout(() => mutate(), 2000);
+    } else if (checkout === "canceled") {
+      toast.error("Checkout canceled.");
+    }
+
+    if (checkout) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, [mutate]);
+
+  const startCheckout = useCallback(async (creditPackage: CreditPackage) => {
+    setCheckoutPackageId(creditPackage.id);
+
+    try {
+      const response = await fetch("/api/credits/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ packageId: creditPackage.id }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.url) {
+        throw new Error(result.error || "Failed to start checkout");
+      }
+
+      window.location.href = result.url;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to start checkout");
+      setCheckoutPackageId(null);
+    }
+  }, []);
+
+  const balance = data?.credits?.balance;
+
   return (
     <div className="flex flex-col h-full">
       {/* Header — matches stats/decks page pattern */}
@@ -102,7 +141,7 @@ export default function PricingPage() {
             Balance
           </span>
           <span className="font-mono text-sm font-semibold text-foreground tabular-nums">
-            —
+            {balance ?? "—"}
           </span>
         </div>
       </div>
@@ -138,14 +177,17 @@ export default function PricingPage() {
               <span className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">
                 Top up credits
               </span>
-              <span className="text-[10px] text-muted-foreground">
-                Credits never expire
-              </span>
+              <span className="text-[10px] text-muted-foreground">Credits never expire</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {tiers.map((tier) => (
-                <TierCard key={tier.name} tier={tier} />
+              {CREDIT_PACKAGES.map((tier) => (
+                <TierCard
+                  key={tier.id}
+                  tier={tier}
+                  isLoading={checkoutPackageId === tier.id}
+                  onPurchase={startCheckout}
+                />
               ))}
             </div>
           </motion.div>
@@ -157,11 +199,7 @@ export default function PricingPage() {
             </span>
             <div className="rounded-lg bg-background-2 border border-border overflow-hidden">
               {aiActions.map((action, i) => (
-                <ActionRow
-                  key={action.label}
-                  action={action}
-                  last={i === aiActions.length - 1}
-                />
+                <ActionRow key={action.label} action={action} last={i === aiActions.length - 1} />
               ))}
             </div>
           </motion.div>
@@ -172,8 +210,8 @@ export default function PricingPage() {
               <div className="w-1.5 h-1.5 rounded-full bg-success shrink-0 mt-[5px]" />
               <p className="text-xs text-muted-foreground leading-relaxed">
                 New accounts receive{" "}
-                <span className="text-foreground font-medium">50 free credits</span>{" "}
-                on sign-up — no payment required.
+                <span className="text-foreground font-medium">50 free credits</span> on sign-up — no
+                payment required.
               </p>
             </div>
           </motion.div>
@@ -185,14 +223,20 @@ export default function PricingPage() {
 
 // ── Tier card ─────────────────────────────────────────────────────────────────
 
-function TierCard({ tier }: { tier: (typeof tiers)[number] }) {
+function TierCard({
+  tier,
+  isLoading,
+  onPurchase,
+}: {
+  tier: CreditPackage;
+  isLoading: boolean;
+  onPurchase: (tier: CreditPackage) => void;
+}) {
   return (
     <div
       className={cn(
         "relative flex flex-col rounded-lg border p-5",
-        tier.featured
-          ? "bg-background-2 border-foreground/20"
-          : "bg-background-2 border-border",
+        tier.featured ? "bg-background-2 border-foreground/20" : "bg-background-2 border-border",
       )}
     >
       {/* Accent line on featured tier — scales from the trigger point */}
@@ -212,9 +256,7 @@ function TierCard({ tier }: { tier: (typeof tiers)[number] }) {
           <p className="text-xs font-semibold text-foreground">{tier.name}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">{tier.note}</p>
         </div>
-        <span className="text-[10px] font-mono text-muted-foreground">
-          {tier.perCredit} each
-        </span>
+        <span className="text-[10px] font-mono text-muted-foreground">{tier.perCredit} each</span>
       </div>
 
       {/* Credit amount */}
@@ -228,15 +270,16 @@ function TierCard({ tier }: { tier: (typeof tiers)[number] }) {
       {/* Footer — price + buy button */}
       <div className="flex items-center justify-between gap-3 mt-auto">
         <span className="font-mono text-sm font-medium text-foreground">
-          ${tier.price}
+          {formatCreditPackagePrice(tier)}
         </span>
         <Button
           variant={tier.featured ? "default" : "outline"}
           size="sm"
-          disabled
+          disabled={isLoading}
+          onClick={() => onPurchase(tier)}
           className="text-xs"
         >
-          Purchase
+          {isLoading ? "Opening" : "Purchase"}
         </Button>
       </div>
     </div>
@@ -245,30 +288,17 @@ function TierCard({ tier }: { tier: (typeof tiers)[number] }) {
 
 // ── Action row ────────────────────────────────────────────────────────────────
 
-function ActionRow({
-  action,
-  last,
-}: {
-  action: (typeof aiActions)[number];
-  last: boolean;
-}) {
+function ActionRow({ action, last }: { action: (typeof aiActions)[number]; last: boolean }) {
   const Icon = action.icon;
   return (
-    <div
-      className={cn(
-        "flex items-center gap-4 px-5 py-3.5",
-        !last && "border-b border-border",
-      )}
-    >
+    <div className={cn("flex items-center gap-4 px-5 py-3.5", !last && "border-b border-border")}>
       <div className="w-7 h-7 rounded-md bg-background-3 border border-border flex items-center justify-center shrink-0">
         <Icon size={13} className="text-muted-foreground" />
       </div>
 
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium text-foreground">{action.label}</p>
-        <p className="text-[11px] text-muted-foreground mt-0.5">
-          {action.description}
-        </p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">{action.description}</p>
       </div>
 
       <div className="flex items-baseline gap-1 shrink-0">
