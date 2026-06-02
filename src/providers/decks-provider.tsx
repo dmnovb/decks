@@ -164,7 +164,7 @@ export const DecksProvider = ({ children }: PropsWithChildren) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const { data, error, isLoading, mutate } = useSWR<Deck[]>(
-    `/api/decks?userId=${user?.id}`,
+    user?.id ? `/api/decks?userId=${user.id}` : null,
     fetcher,
     {
       revalidateOnFocus: false,
