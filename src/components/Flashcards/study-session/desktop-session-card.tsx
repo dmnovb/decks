@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "motion/react";
 import { RotateCcw, ThumbsDown, ThumbsUp, Zap } from "lucide-react";
+import { useTtsPlayback } from "@/hooks/use-tts-playback";
+import { TtsPlaybackControls } from "./tts-controls";
 
 interface DesktopSessionCardProps {
   card: Flashcard;
@@ -12,6 +14,7 @@ interface DesktopSessionCardProps {
   onFlip: () => void;
   onRate: (quality: number) => void;
   isLoading: boolean;
+  ttsPlayback: ReturnType<typeof useTtsPlayback>;
 }
 
 const difficultyButtons = [
@@ -59,6 +62,7 @@ export function DesktopSessionCard({
   onFlip,
   onRate,
   isLoading,
+  ttsPlayback,
 }: DesktopSessionCardProps) {
   return (
     <div className="space-y-6">
@@ -70,10 +74,22 @@ export function DesktopSessionCard({
             animate={{ opacity: 1, rotateY: 0 }}
             exit={{ opacity: 0, rotateY: -90 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="text-center space-y-6 w-full"
+            className="relative text-center space-y-6 w-full"
           >
             {!showBack && (
               <div className="space-y-4">
+                <TtsPlaybackControls
+                  side="front"
+                  text={card.front}
+                  cardId={card.id}
+                  activeSide={ttsPlayback.activeSide}
+                  disabled={isLoading}
+                  voiceId={ttsPlayback.voiceId}
+                  voicePresets={ttsPlayback.voicePresets}
+                  onVoiceChange={ttsPlayback.setVoiceId}
+                  onPlay={ttsPlayback.play}
+                  className="absolute right-6 top-6"
+                />
                 <p className="text-sm text-muted-foreground uppercase tracking-wide">Question</p>
                 <h2 className="text-3xl font-semibold text-foreground leading-relaxed">
                   {card.front}
@@ -88,14 +104,42 @@ export function DesktopSessionCard({
             {showBack && (
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground uppercase tracking-wide">Question</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <p className="text-sm text-muted-foreground uppercase tracking-wide">
+                      Question
+                    </p>
+                    <TtsPlaybackControls
+                      side="front"
+                      text={card.front}
+                      cardId={card.id}
+                      activeSide={ttsPlayback.activeSide}
+                      disabled={isLoading}
+                      voiceId={ttsPlayback.voiceId}
+                      voicePresets={ttsPlayback.voicePresets}
+                      onVoiceChange={ttsPlayback.setVoiceId}
+                      onPlay={ttsPlayback.play}
+                    />
+                  </div>
                   <h3 className="text-xl font-medium text-foreground/80">{card.front}</h3>
                 </div>
 
                 <div className="h-px bg-border/30" />
 
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground uppercase tracking-wide">Answer</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <p className="text-sm text-muted-foreground uppercase tracking-wide">Answer</p>
+                    <TtsPlaybackControls
+                      side="back"
+                      text={card.back}
+                      cardId={card.id}
+                      activeSide={ttsPlayback.activeSide}
+                      disabled={isLoading}
+                      voiceId={ttsPlayback.voiceId}
+                      voicePresets={ttsPlayback.voicePresets}
+                      onVoiceChange={ttsPlayback.setVoiceId}
+                      onPlay={ttsPlayback.play}
+                    />
+                  </div>
                   <p className="text-2xl text-foreground font-semibold leading-relaxed">
                     {card.back}
                   </p>

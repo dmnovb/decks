@@ -36,6 +36,13 @@ const RULES: { name: string; pattern: RegExp; limit: number; windowMs: number }[
     limit: 10,
     windowMs: 60_000,
   },
+  // TTS playback: 30 requests per minute per IP (cost protection)
+  {
+    name: "tts",
+    pattern: /^\/api\/tts$/,
+    limit: 30,
+    windowMs: 60_000,
+  },
   // Stripe checkout creation: 10 requests per minute per IP (provider protection)
   { name: "credits-checkout", pattern: /^\/api\/credits\/checkout$/, limit: 10, windowMs: 60_000 },
   // AI + chat: 60 requests per minute per IP (cost protection)
@@ -73,6 +80,7 @@ export const config = {
     "/api/ai/:path*",
     "/api/chat",
     "/api/generate-flashcards",
+    "/api/tts",
     "/api/credits/checkout",
   ],
 };
