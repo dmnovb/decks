@@ -63,6 +63,9 @@ export async function POST(request: NextRequest) {
         totalCards: cards.length,
         newCards,
         reviewCards: cards.length - newCards,
+        selectedCards: {
+          create: cardIds.map((flashcardId) => ({ flashcardId })),
+        },
       },
       select: { id: true, startedAt: true },
     });
