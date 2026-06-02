@@ -1,4 +1,5 @@
 import { Prisma } from "@/generated/prisma";
+import { CreditPackage } from "@/lib/credit-packages";
 import prisma from "@/lib/prisma";
 
 export const INITIAL_ACCOUNT_CREDITS = 50;
@@ -111,6 +112,93 @@ export async function refundCredits(
 
     return updated;
   });
+}
+
+interface GrantPurchasedCreditsParams {
+  userId: string;
+  creditPackage: CreditPackage;
+  stripeCheckoutSessionId: string;
+  stripePaymentIntentId?: string | null;
+  stripeEventId: string;
+}
+
+export async function grantPurchasedCredits({
+  userId,
+  creditPackage,
+  stripeCheckoutSessionId,
+  stripePaymentIntentId,
+  stripeEventId,
+}: GrantPurchasedCreditsParams) {
+  const paymentIntentId = stripePaymentIntentId ?? null;
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const account = await tx.creditAccount.upsert({
+        where: { userId },
+        update: {},
+        create: {
+          userId,
+          balance: INITIAL_ACCOUNT_CREDITS,
+          totalGranted: INITIAL_ACCOUNT_CREDITS,
+          transactions: {
+            create: {
+              amount: INITIAL_ACCOUNT_CREDITS,
+              type: "GRANT",
+              reason: "initial_account_allocation",
+            },
+          },
+        },
+      });
+
+      const purchase = await tx.creditPurchase.create({
+        data: {
+          creditAccountId: account.id,
+          packageId: creditPackage.id,
+          credits: creditPackage.credits,
+          amountCents: creditPackage.amountCents,
+          currency: creditPackage.currency,
+          stripeCheckoutSessionId,
+          stripePaymentIntentId: paymentIntentId,
+          stripeEventId,
+        },
+      });
+
+      const updated = await tx.creditAccount.update({
+        where: { id: account.id },
+        data: {
+          balance: { increment: creditPackage.credits },
+          totalGranted: { increment: creditPackage.credits },
+        },
+        select: { id: true, balance: true, totalGranted: true, totalSpent: true },
+      });
+
+      await tx.creditTransaction.create({
+        data: {
+          creditAccountId: account.id,
+          amount: creditPackage.credits,
+          type: "GRANT",
+          reason: "credit_purchase",
+          metadata: {
+            creditPurchaseId: purchase.id,
+            packageId: creditPackage.id,
+            stripeCheckoutSessionId,
+            stripePaymentIntentId: paymentIntentId,
+            stripeEventId,
+            amountCents: creditPackage.amountCents,
+            currency: creditPackage.currency,
+          },
+        },
+      });
+
+      return { granted: true, account: updated, purchase };
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { granted: false, duplicate: true };
+    }
+
+    throw error;
+  }
 }
 
 export function creditsRequiredResponse(error: InsufficientCreditsError) {
