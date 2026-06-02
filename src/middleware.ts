@@ -23,6 +23,8 @@ function isAllowed(key: string, limit: number, windowMs: number): boolean {
 const RULES: { pattern: RegExp; limit: number; windowMs: number }[] = [
   // Auth: 10 requests per minute per IP (brute-force protection)
   { pattern: /^\/api\/auth\//, limit: 10, windowMs: 60_000 },
+  // Flashcard generation: 10 requests per minute per IP (cost protection)
+  { pattern: /^\/api\/generate-flashcards$/, limit: 10, windowMs: 60_000 },
   // AI + chat: 60 requests per minute per IP (cost protection)
   { pattern: /^\/api\/(ai|chat)/, limit: 60, windowMs: 60_000 },
 ];
@@ -49,5 +51,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/auth/:path*", "/api/ai/:path*", "/api/chat"],
+  matcher: ["/api/auth/:path*", "/api/ai/:path*", "/api/chat", "/api/generate-flashcards"],
 };
