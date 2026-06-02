@@ -129,11 +129,27 @@ export async function grantPurchasedCredits({
   stripePaymentIntentId,
   stripeEventId,
 }: GrantPurchasedCreditsParams) {
-  const account = await getOrCreateCreditAccount(userId);
   const paymentIntentId = stripePaymentIntentId ?? null;
 
   try {
     return await prisma.$transaction(async (tx) => {
+      const account = await tx.creditAccount.upsert({
+        where: { userId },
+        update: {},
+        create: {
+          userId,
+          balance: INITIAL_ACCOUNT_CREDITS,
+          totalGranted: INITIAL_ACCOUNT_CREDITS,
+          transactions: {
+            create: {
+              amount: INITIAL_ACCOUNT_CREDITS,
+              type: "GRANT",
+              reason: "initial_account_allocation",
+            },
+          },
+        },
+      });
+
       const purchase = await tx.creditPurchase.create({
         data: {
           creditAccountId: account.id,

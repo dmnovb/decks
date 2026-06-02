@@ -75,10 +75,19 @@ const creditsFetcher = async (url: string): Promise<CreditsResponse> => {
   return response.json();
 };
 
+const CHECKOUT_EXPECTED_BALANCE_KEY = "creditCheckoutExpectedBalance";
+const CHECKOUT_POLL_ATTEMPTS = 10;
+const CHECKOUT_POLL_INTERVAL_MS = 1000;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PricingPage() {
   const [checkoutPackageId, setCheckoutPackageId] = useState<string | null>(null);
+  const [isProcessingCheckoutReturn, setIsProcessingCheckoutReturn] = useState(false);
   const { data, mutate } = useSWR<CreditsResponse>("/api/credits", creditsFetcher, {
     revalidateOnFocus: false,
   });
@@ -86,12 +95,42 @@ export default function PricingPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const checkout = params.get("checkout");
+
+    async function pollForPurchasedCredits() {
+      setIsProcessingCheckoutReturn(true);
+      toast("Payment complete. Updating your credits.");
+
+      const expectedBalanceValue = window.sessionStorage.getItem(CHECKOUT_EXPECTED_BALANCE_KEY);
+      const expectedBalance = expectedBalanceValue ? Number(expectedBalanceValue) : null;
+      window.sessionStorage.removeItem(CHECKOUT_EXPECTED_BALANCE_KEY);
+
+      try {
+        for (let attempt = 0; attempt < CHECKOUT_POLL_ATTEMPTS; attempt++) {
+          const refreshed = await mutate();
+          const refreshedBalance = refreshed?.credits?.balance;
+
+          if (
+            refreshedBalance !== undefined &&
+            (expectedBalance === null || refreshedBalance >= expectedBalance)
+          ) {
+            toast.success("Credits updated.");
+            return;
+          }
+
+          await sleep(CHECKOUT_POLL_INTERVAL_MS);
+        }
+
+        toast("Payment received. Credits are still processing.");
+      } finally {
+        setIsProcessingCheckoutReturn(false);
+      }
+    }
+
     if (checkout === "success") {
-      toast.success("Payment complete. Refreshing your credits.");
-      mutate();
-      window.setTimeout(() => mutate(), 2000);
+      pollForPurchasedCredits();
     } else if (checkout === "canceled") {
       toast.error("Checkout canceled.");
+      window.sessionStorage.removeItem(CHECKOUT_EXPECTED_BALANCE_KEY);
     }
 
     if (checkout) {
@@ -99,28 +138,37 @@ export default function PricingPage() {
     }
   }, [mutate]);
 
-  const startCheckout = useCallback(async (creditPackage: CreditPackage) => {
-    setCheckoutPackageId(creditPackage.id);
+  const startCheckout = useCallback(
+    async (creditPackage: CreditPackage) => {
+      setCheckoutPackageId(creditPackage.id);
 
-    try {
-      const response = await fetch("/api/credits/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ packageId: creditPackage.id }),
-      });
+      try {
+        const response = await fetch("/api/credits/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ packageId: creditPackage.id }),
+        });
 
-      const result = await response.json();
-      if (!response.ok || !result.url) {
-        throw new Error(result.error || "Failed to start checkout");
+        const result = await response.json();
+        if (!response.ok || !result.url) {
+          throw new Error(result.error || "Failed to start checkout");
+        }
+
+        if (data?.credits?.balance !== undefined) {
+          window.sessionStorage.setItem(
+            CHECKOUT_EXPECTED_BALANCE_KEY,
+            String(data.credits.balance + creditPackage.credits),
+          );
+        }
+        window.location.href = result.url;
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to start checkout");
+        setCheckoutPackageId(null);
       }
-
-      window.location.href = result.url;
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to start checkout");
-      setCheckoutPackageId(null);
-    }
-  }, []);
+    },
+    [data?.credits?.balance],
+  );
 
   const balance = data?.credits?.balance;
 
@@ -141,7 +189,7 @@ export default function PricingPage() {
             Balance
           </span>
           <span className="font-mono text-sm font-semibold text-foreground tabular-nums">
-            {balance ?? "—"}
+            {isProcessingCheckoutReturn ? "Updating" : (balance ?? "—")}
           </span>
         </div>
       </div>

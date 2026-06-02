@@ -11,7 +11,12 @@ function getPaymentIntentId(paymentIntent: Stripe.Checkout.Session["payment_inte
 }
 
 function getSessionUserId(session: Stripe.Checkout.Session) {
-  return session.client_reference_id ?? session.metadata?.userId ?? null;
+  return session.client_reference_id;
+}
+
+function acknowledgedWebhookIssue(error: string, sessionId: string) {
+  console.error(`Ignoring Stripe checkout session ${sessionId}: ${error}`);
+  return Response.json({ success: true, received: true, ignored: true, error });
 }
 
 export async function POST(request: Request) {
@@ -46,16 +51,14 @@ export async function POST(request: Request) {
   const creditPackage = packageId ? getCreditPackage(packageId) : undefined;
 
   if (!userId || !creditPackage) {
-    console.error("Stripe checkout session missing credit metadata:", session.id);
-    return Response.json({ success: false, error: "Invalid checkout metadata" }, { status: 400 });
+    return acknowledgedWebhookIssue("Invalid checkout metadata", session.id);
   }
 
   if (
     session.amount_total !== creditPackage.amountCents ||
     session.currency !== creditPackage.currency
   ) {
-    console.error("Stripe checkout session amount mismatch:", session.id);
-    return Response.json({ success: false, error: "Invalid checkout amount" }, { status: 400 });
+    return acknowledgedWebhookIssue("Invalid checkout amount", session.id);
   }
 
   try {
