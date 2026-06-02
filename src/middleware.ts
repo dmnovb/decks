@@ -27,8 +27,8 @@ function checkRateLimit(
 }
 
 const RULES: { name: string; pattern: RegExp; limit: number; windowMs: number }[] = [
-  // Auth: 10 requests per minute per IP (brute-force protection)
-  { name: "auth", pattern: /^\/api\/auth\//, limit: 10, windowMs: 60_000 },
+  // Auth mutations: 10 requests per minute per IP (brute-force protection).
+  { name: "auth", pattern: /^\/api\/auth\/(?!me$|logout$).+/, limit: 10, windowMs: 60_000 },
   // Flashcard generation: 10 requests per minute per IP (cost protection)
   {
     name: "generate-flashcards",

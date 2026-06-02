@@ -1,11 +1,9 @@
-import { AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS } from "@/lib/auth/cookies";
+import { AUTH_COOKIE_NAME, expiredAuthCookieOptions } from "@/lib/auth/cookies";
 import { cookies } from "next/headers";
+import { NextRequest } from "next/server";
 
-export async function POST() {
-  (await cookies()).set(AUTH_COOKIE_NAME, "", {
-    ...AUTH_COOKIE_OPTIONS,
-    maxAge: 0,
-  });
+export async function POST(request: NextRequest) {
+  (await cookies()).set(AUTH_COOKIE_NAME, "", expiredAuthCookieOptions(request));
 
   return Response.json({ message: "Logged out." });
 }
