@@ -104,6 +104,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         credentials: "include",
       });
       setUser(null);
+      localStorage.removeItem("user-data");
       router.push("/login");
     } catch (error) {
       console.error("Logout failed:", error);
