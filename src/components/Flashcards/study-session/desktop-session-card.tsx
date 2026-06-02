@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "motion/react";
 import { RotateCcw, ThumbsDown, ThumbsUp, Zap } from "lucide-react";
-import { useTtsPlayback } from "@/hooks/use-tts-playback";
+import type { TtsPlaybackController } from "@/hooks/use-tts-playback";
 import { TtsPlaybackControls } from "./tts-controls";
 
 interface DesktopSessionCardProps {
@@ -14,7 +14,7 @@ interface DesktopSessionCardProps {
   onFlip: () => void;
   onRate: (quality: number) => void;
   isLoading: boolean;
-  ttsPlayback: ReturnType<typeof useTtsPlayback>;
+  ttsPlayback: TtsPlaybackController;
 }
 
 const difficultyButtons = [

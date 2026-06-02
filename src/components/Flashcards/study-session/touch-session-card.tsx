@@ -5,7 +5,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform, type PanInfo } f
 import { useState, useCallback } from "react";
 import { RotateCcw, Minus, Check, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useTtsPlayback } from "@/hooks/use-tts-playback";
+import type { TtsPlaybackController } from "@/hooks/use-tts-playback";
 import { TtsPlaybackControls } from "./tts-controls";
 
 const SWIPE_THRESHOLD = 80;
@@ -20,7 +20,7 @@ interface TouchSessionCardProps {
   onFlip: () => void;
   onRate: (quality: number) => void;
   isLoading: boolean;
-  ttsPlayback: ReturnType<typeof useTtsPlayback>;
+  ttsPlayback: TtsPlaybackController;
 }
 
 const ratings = [

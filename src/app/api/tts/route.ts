@@ -9,20 +9,24 @@ import {
   spendCredits,
 } from "@/lib/credits";
 import {
+  ELEVENLABS_ALLOWED_VOICE_IDS,
   ELEVENLABS_DEFAULT_VOICE_ID,
+  ELEVENLABS_LONG_PLAYBACK_THRESHOLD,
+  ELEVENLABS_MAX_TTS_CHARACTERS,
   ELEVENLABS_TTS_MODEL_ID,
-  getElevenLabsApiKey,
-  getElevenLabsTextToSpeechStreamUrl,
-} from "@/lib/elevenlabs";
+} from "@/lib/elevenlabs-constants";
+import { getElevenLabsApiKey, getElevenLabsTextToSpeechStreamUrl } from "@/lib/elevenlabs";
 
 export const runtime = "nodejs";
 
-const MAX_TTS_CHARACTERS = 500;
-const LONG_PLAYBACK_THRESHOLD = 200;
+const TTS_PLAYBACK_FAILED_REASON = "tts_playback_failed";
 
 const ttsSchema = z.object({
-  text: nonEmptyString("Text").max(MAX_TTS_CHARACTERS, "Text must be at most 500 characters"),
-  voiceId: z.string().trim().min(1).max(128).optional().default(ELEVENLABS_DEFAULT_VOICE_ID),
+  text: nonEmptyString("Text").max(
+    ELEVENLABS_MAX_TTS_CHARACTERS,
+    "Text must be at most 500 characters",
+  ),
+  voiceId: z.enum(ELEVENLABS_ALLOWED_VOICE_IDS).optional().default(ELEVENLABS_DEFAULT_VOICE_ID),
   cardId: z.string().trim().min(1).max(128).optional(),
 });
 
@@ -34,7 +38,7 @@ function getAuthenticatedUserId(request: NextRequest): string | null {
 }
 
 function getTtsCreditCost(charCount: number) {
-  return charCount <= LONG_PLAYBACK_THRESHOLD ? 1 : 2;
+  return charCount <= ELEVENLABS_LONG_PLAYBACK_THRESHOLD ? 1 : 2;
 }
 
 async function refundFailedTtsPlayback(
@@ -43,9 +47,15 @@ async function refundFailedTtsPlayback(
   metadata: { voiceId: string; charCount: number; cardId?: string },
 ) {
   try {
-    await refundCredits(userId, amount, "tts_playback_failed", metadata);
+    await refundCredits(userId, amount, TTS_PLAYBACK_FAILED_REASON, metadata);
   } catch (error) {
-    console.error("Failed to refund TTS credits:", error);
+    console.error("Failed to refund TTS credits. Manual reconciliation required.", {
+      userId,
+      amount,
+      reason: TTS_PLAYBACK_FAILED_REASON,
+      metadata,
+      error,
+    });
   }
 }
 
@@ -79,6 +89,7 @@ export async function POST(request: NextRequest) {
           text,
           model_id: ELEVENLABS_TTS_MODEL_ID,
         }),
+        signal: request.signal,
       });
     } catch (error) {
       await refundFailedTtsPlayback(userId, creditCost, metadata);
@@ -94,6 +105,19 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: false, error: "Failed to generate speech" }, { status: 502 });
     }
 
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!contentType.startsWith("audio/")) {
+      await refundFailedTtsPlayback(userId, creditCost, metadata);
+      console.error("ElevenLabs returned non-audio content-type:", {
+        contentType,
+        status: response.status,
+        statusText: response.statusText,
+      });
+      return Response.json({ success: false, error: "Failed to generate speech" }, { status: 502 });
+    }
+
+    // If the upstream stream fails after this point, headers are already committed.
+    // The user may receive partial audio and keep the spend; a pending-intent flow can harden this later.
     return new Response(response.body, {
       headers: {
         "Content-Type": "audio/mpeg",

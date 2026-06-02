@@ -1,6 +1,4 @@
 export const ELEVENLABS_API_BASE_URL = "https://api.elevenlabs.io/v1";
-export const ELEVENLABS_DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb";
-export const ELEVENLABS_TTS_MODEL_ID = "eleven_multilingual_v2";
 
 export function getElevenLabsApiKey() {
   const apiKey = process.env.ELEVENLABS_API_KEY;
