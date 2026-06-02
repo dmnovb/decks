@@ -1,4 +1,5 @@
 import { createUser, generateToken, getUserByEmail } from "@/lib/auth/helpers";
+import { AUTH_COOKIE_NAME, authCookieOptions } from "@/lib/auth/cookies";
 import { validateJsonBody } from "@/lib/api/validation";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
@@ -29,12 +30,7 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       email: user.email,
     });
-    (await cookies()).set("auth-token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60,
-    });
+    (await cookies()).set(AUTH_COOKIE_NAME, token, authCookieOptions(request));
 
     return Response.json(
       {

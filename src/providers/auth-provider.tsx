@@ -4,6 +4,7 @@ import { User } from "@/generated/prisma";
 import { useRouter } from "next/navigation";
 import { createContext, PropsWithChildren, useContext, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
 
 interface Auth {
   user: User | null;
@@ -29,6 +30,12 @@ const AuthContext = createContext<Auth>({
   register: async () => ({ success: false }),
 });
 
+const cachedUserSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  name: z.string().nullable().optional(),
+});
+
 export const AuthProvider = ({ children }: PropsWithChildren) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,27 +48,36 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
   }, []);
 
   const checkAuth = async () => {
+    let hasCachedUser = false;
     const cached = localStorage.getItem("user-data");
     if (cached) {
-      setUser(JSON.parse(cached));
-      setIsInitializing(false);
+      try {
+        setUser(cachedUserSchema.passthrough().parse(JSON.parse(cached)) as User);
+        hasCachedUser = true;
+      } catch {
+        localStorage.removeItem("user-data");
+      }
     }
 
     try {
       const response = await fetch("/api/auth/me", {
         credentials: "include",
+        cache: "no-store",
       });
 
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
         localStorage.setItem("user-data", JSON.stringify(userData));
-      } else {
+      } else if (response.status === 401 || response.status === 403) {
         setUser(null);
         localStorage.removeItem("user-data");
+      } else if (!hasCachedUser) {
+        setUser(null);
       }
     } catch {
       // Keep cached user on network error — don't log out on flaky connections
+      if (!hasCachedUser) setUser(null);
     } finally {
       setIsInitializing(false);
     }
@@ -104,6 +120,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         credentials: "include",
       });
       setUser(null);
+      localStorage.removeItem("user-data");
       router.push("/login");
     } catch (error) {
       console.error("Logout failed:", error);
