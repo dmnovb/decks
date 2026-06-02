@@ -5,28 +5,39 @@ import { NextRequest, NextResponse } from "next/server";
 // meaningful protection while requiring zero infrastructure.
 const store = new Map<string, { count: number; resetAt: number }>();
 
-function isAllowed(key: string, limit: number, windowMs: number): boolean {
+function checkRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+): { allowed: true } | { allowed: false; retryAfter: number } {
   const now = Date.now();
   const entry = store.get(key);
 
   if (!entry || now > entry.resetAt) {
     store.set(key, { count: 1, resetAt: now + windowMs });
-    return true;
+    return { allowed: true };
   }
 
-  if (entry.count >= limit) return false;
+  if (entry.count >= limit) {
+    return { allowed: false, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
+  }
 
   entry.count++;
-  return true;
+  return { allowed: true };
 }
 
-const RULES: { pattern: RegExp; limit: number; windowMs: number }[] = [
+const RULES: { name: string; pattern: RegExp; limit: number; windowMs: number }[] = [
   // Auth: 10 requests per minute per IP (brute-force protection)
-  { pattern: /^\/api\/auth\//, limit: 10, windowMs: 60_000 },
+  { name: "auth", pattern: /^\/api\/auth\//, limit: 10, windowMs: 60_000 },
   // Flashcard generation: 10 requests per minute per IP (cost protection)
-  { pattern: /^\/api\/generate-flashcards$/, limit: 10, windowMs: 60_000 },
+  {
+    name: "generate-flashcards",
+    pattern: /^\/api\/generate-flashcards$/,
+    limit: 10,
+    windowMs: 60_000,
+  },
   // AI + chat: 60 requests per minute per IP (cost protection)
-  { pattern: /^\/api\/(ai|chat)/, limit: 60, windowMs: 60_000 },
+  { name: "ai-chat", pattern: /^\/api\/(ai|chat)/, limit: 60, windowMs: 60_000 },
 ];
 
 export function middleware(request: NextRequest) {
@@ -39,9 +50,13 @@ export function middleware(request: NextRequest) {
 
   for (const rule of RULES) {
     if (rule.pattern.test(path)) {
-      const key = `${ip}:${path.replace(/\/[^/]+$/, "")}`;
-      if (!isAllowed(key, rule.limit, rule.windowMs)) {
-        return new NextResponse("Too Many Requests", { status: 429 });
+      const key = `${ip}:${rule.name}`;
+      const rateLimit = checkRateLimit(key, rule.limit, rule.windowMs);
+      if (!rateLimit.allowed) {
+        return new NextResponse("Too Many Requests", {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfter) },
+        });
       }
       break;
     }
