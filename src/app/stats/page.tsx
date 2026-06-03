@@ -1,5 +1,7 @@
 "use client";
 
+import { useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { motion } from "motion/react";
 import {
@@ -12,6 +14,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
+import { useIris } from "@/hooks/use-iris";
+import type { IrisConfig } from "@/hooks/use-iris";
+import { irisPanelClass } from "@/lib/iris-styles";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -50,9 +55,70 @@ const item = {
 };
 
 export default function StatsPage() {
+  const router = useRouter();
   const { data, isLoading } = useSWR<StatsData>("/api/stats", fetcher, {
     revalidateOnFocus: false,
   });
+
+  const dueDecks = useMemo(
+    () =>
+      [...(data?.deckStats ?? [])]
+        .filter((deck) => deck.dueCount > 0)
+        .sort((a, b) => b.dueCount - a.dueCount || a.title.localeCompare(b.title)),
+    [data?.deckStats],
+  );
+
+  const openStudyDeck = useCallback(
+    (deckId: string, close: () => void) => {
+      close();
+      router.push(`/decks/${deckId}?mode=study`);
+    },
+    [router],
+  );
+
+  const irisConfig = useMemo<IrisConfig>(
+    () => ({
+      title: "Due study",
+      label: "Study due cards",
+      icon: BookOpen,
+      content: ({ close }) => (
+        <div className="space-y-2">
+          {isLoading ? (
+            <div className={`${irisPanelClass} p-4`}>
+              <p className="text-sm text-background/70">Loading decks...</p>
+            </div>
+          ) : dueDecks.length === 0 ? (
+            <div className={`${irisPanelClass} p-4`}>
+              <p className="text-sm font-medium text-background">No cards due</p>
+              <p className="mt-1 text-xs leading-relaxed text-background/55">
+                Your review queue is clear.
+              </p>
+            </div>
+          ) : (
+            dueDecks.map((deck) => (
+              <button
+                key={deck.id}
+                type="button"
+                onClick={() => openStudyDeck(deck.id, close)}
+                className={`${irisPanelClass} flex w-full items-center gap-3 p-3 text-left transition-[background-color,transform] duration-150 hover:bg-background/[0.1] active:scale-[0.98]`}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-background">{deck.title}</p>
+                  <p className="mt-1 text-xs text-background/50">{deck.cards} cards</p>
+                </div>
+                <span className="rounded-full bg-background text-foreground px-2.5 py-1 font-mono text-xs tabular-nums">
+                  {deck.dueCount}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      ),
+    }),
+    [dueDecks, isLoading, openStudyDeck],
+  );
+
+  useIris(irisConfig);
 
   const derived = data
     ? {
@@ -68,10 +134,8 @@ export default function StatsPage() {
           const s = data.sessionHistory;
           if (s.length < 4) return 0;
           const half = Math.floor(s.length / 2);
-          const recent =
-            s.slice(-half).reduce((a, b) => a + b.accuracy, 0) / half;
-          const earlier =
-            s.slice(0, half).reduce((a, b) => a + b.accuracy, 0) / half;
+          const recent = s.slice(-half).reduce((a, b) => a + b.accuracy, 0) / half;
+          const earlier = s.slice(0, half).reduce((a, b) => a + b.accuracy, 0) / half;
           return Math.round(recent - earlier);
         })(),
       }
@@ -82,9 +146,7 @@ export default function StatsPage() {
       <div className="flex items-center justify-between px-4 py-4 sm:px-8 sm:py-5 border-b border-border shrink-0">
         <div>
           <h1 className="text-sm font-semibold text-foreground">Statistics</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Your learning at a glance
-          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">Your learning at a glance</p>
         </div>
       </div>
 
@@ -103,16 +165,8 @@ export default function StatsPage() {
               variants={item}
               className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"
             >
-              <StatTile
-                value={data.totalCards}
-                label="cards"
-                icon={<Layers size={12} />}
-              />
-              <StatTile
-                value={data.totalReviews}
-                label="reviews"
-                icon={<TrendingUp size={12} />}
-              />
+              <StatTile value={data.totalCards} label="cards" icon={<Layers size={12} />} />
+              <StatTile value={data.totalReviews} label="reviews" icon={<TrendingUp size={12} />} />
               <StatTile
                 value={`${data.accuracy}%`}
                 label="accuracy"
@@ -125,11 +179,7 @@ export default function StatsPage() {
                 label="best streak"
                 icon={<Flame size={12} className="text-warning" />}
               />
-              <StatTile
-                value={derived.sessionCount}
-                label="sessions"
-                icon={<Clock size={12} />}
-              />
+              <StatTile value={derived.sessionCount} label="sessions" icon={<Clock size={12} />} />
               <StatTile
                 value={derived.avgCardsPerSession || "—"}
                 label="avg / session"
@@ -146,10 +196,7 @@ export default function StatsPage() {
 
               {/* Right stack — 1 col */}
               <div className="flex flex-col gap-3">
-                <DifficultyChart
-                  buckets={data.difficultyBuckets}
-                  total={data.totalCards}
-                />
+                <DifficultyChart buckets={data.difficultyBuckets} total={data.totalCards} />
                 {data.dueNow > 0 && <DueSection data={data} />}
               </div>
             </motion.div>
@@ -209,11 +256,7 @@ function StatTile({
               trend > 0 ? "text-success" : "text-destructive"
             }`}
           >
-            {trend > 0 ? (
-              <ArrowUpRight size={10} />
-            ) : (
-              <ArrowDownRight size={10} />
-            )}
+            {trend > 0 ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
             {Math.abs(trend)}%
           </span>
         )}
@@ -224,11 +267,7 @@ function StatTile({
 
 // ── Accuracy chart ─────────────────────────────────────────────────────────────
 
-function AccuracyChart({
-  sessions,
-}: {
-  sessions: StatsData["sessionHistory"];
-}) {
+function AccuracyChart({ sessions }: { sessions: StatsData["sessionHistory"] }) {
   const W = 500;
   const H = 140;
   const PAD_L = 28;
@@ -403,12 +442,8 @@ function DifficultyChart({
                 className="w-1.5 h-1.5 rounded-full shrink-0"
                 style={{ backgroundColor: color }}
               />
-              <span className="text-[11px] text-muted-foreground flex-1">
-                {label}
-              </span>
-              <span className="font-mono text-[11px] text-muted-foreground">
-                {count}
-              </span>
+              <span className="text-[11px] text-muted-foreground flex-1">{label}</span>
+              <span className="font-mono text-[11px] text-muted-foreground">{count}</span>
               <span className="font-mono text-[10px] text-muted-foreground w-8 text-right tabular-nums">
                 {pct}%
               </span>
@@ -440,17 +475,11 @@ function DueSection({ data }: { data: StatsData }) {
       </div>
       <div className="flex gap-4 text-[11px]">
         <div className="flex items-center gap-1.5">
-          <div
-            className="w-1.5 h-1.5 rounded-full"
-            style={{ backgroundColor: "var(--chart-4)" }}
-          />
+          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "var(--chart-4)" }} />
           <span className="text-muted-foreground">{newCards} new</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div
-            className="w-1.5 h-1.5 rounded-full"
-            style={{ backgroundColor: "var(--chart-1)" }}
-          />
+          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "var(--chart-1)" }} />
           <span className="text-muted-foreground">{reviewCards} review</span>
         </div>
       </div>
@@ -476,11 +505,7 @@ function Heatmap({ data }: { data: StatsData["heatmap"] }) {
   weeks.forEach((week, wi) => {
     if (!week[0]) return;
     const firstDay = new Date(week[0].date);
-    if (
-      wi === 0 ||
-      new Date(weeks[wi - 1]?.[0]?.date ?? "").getMonth() !==
-        firstDay.getMonth()
-    ) {
+    if (wi === 0 || new Date(weeks[wi - 1]?.[0]?.date ?? "").getMonth() !== firstDay.getMonth()) {
       monthLabels.push({
         weekIdx: wi,
         label: firstDay.toLocaleDateString("en", { month: "short" }),
@@ -536,8 +561,7 @@ function Heatmap({ data }: { data: StatsData["heatmap"] }) {
             {weeks.map((week, wi) => (
               <div key={wi} className="flex flex-col gap-[4px]">
                 {week.map((day) => {
-                  const intensity =
-                    day.count === 0 ? 0 : 0.2 + (day.count / maxCount) * 0.8;
+                  const intensity = day.count === 0 ? 0 : 0.2 + (day.count / maxCount) * 0.8;
                   return (
                     <div
                       key={day.date}
@@ -587,19 +611,18 @@ function DeckTable({ decks }: { decks: StatsData["deckStats"] }) {
   return (
     <div className="rounded-lg bg-background-2 border border-border overflow-hidden">
       <div className="overflow-x-auto">
-      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-        <span className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">
-          Deck performance
-        </span>
-        <span className="text-[10px] font-mono text-muted-foreground">
-          {decks.length} deck{decks.length !== 1 ? "s" : ""}
-        </span>
-      </div>
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="border-b border-border">
-            {["Name", "Cards", "Accuracy", "Avg interval", "Due"].map(
-              (h, i) => (
+        <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+          <span className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground">
+            Deck performance
+          </span>
+          <span className="text-[10px] font-mono text-muted-foreground">
+            {decks.length} deck{decks.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-border">
+              {["Name", "Cards", "Accuracy", "Avg interval", "Due"].map((h, i) => (
                 <th
                   key={h}
                   className={`px-4 py-2 text-[10px] font-medium tracking-widest uppercase text-muted-foreground ${
@@ -608,53 +631,52 @@ function DeckTable({ decks }: { decks: StatsData["deckStats"] }) {
                 >
                   {h}
                 </th>
-              ),
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {decks.map((deck, i) => (
-            <tr
-              key={deck.id}
-              className={`transition-colors hover:bg-background-3/50 ${
-                i < decks.length - 1 ? "border-b border-border" : ""
-              }`}
-            >
-              <td className="px-4 py-2.5 text-foreground font-medium truncate max-w-[200px]">
-                {deck.title}
-              </td>
-              <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">
-                {deck.cards}
-              </td>
-              <td className="px-4 py-2.5 text-right font-mono">
-                <span
-                  className={
-                    deck.accuracy >= 80
-                      ? "text-success"
-                      : deck.accuracy >= 60
-                        ? "text-warning"
-                        : deck.accuracy === 0
-                          ? "text-muted-foreground"
-                          : "text-destructive"
-                  }
-                >
-                  {deck.accuracy === 0 ? "—" : `${deck.accuracy}%`}
-                </span>
-              </td>
-              <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">
-                {deck.avgInterval > 0 ? `${deck.avgInterval}d` : "—"}
-              </td>
-              <td className="px-4 py-2.5 text-right font-mono">
-                {deck.dueCount > 0 ? (
-                  <span className="text-warning">{deck.dueCount}</span>
-                ) : (
-                  <span className="text-muted-foreground">0</span>
-                )}
-              </td>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {decks.map((deck, i) => (
+              <tr
+                key={deck.id}
+                className={`transition-colors hover:bg-background-3/50 ${
+                  i < decks.length - 1 ? "border-b border-border" : ""
+                }`}
+              >
+                <td className="px-4 py-2.5 text-foreground font-medium truncate max-w-[200px]">
+                  {deck.title}
+                </td>
+                <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">
+                  {deck.cards}
+                </td>
+                <td className="px-4 py-2.5 text-right font-mono">
+                  <span
+                    className={
+                      deck.accuracy >= 80
+                        ? "text-success"
+                        : deck.accuracy >= 60
+                          ? "text-warning"
+                          : deck.accuracy === 0
+                            ? "text-muted-foreground"
+                            : "text-destructive"
+                    }
+                  >
+                    {deck.accuracy === 0 ? "—" : `${deck.accuracy}%`}
+                  </span>
+                </td>
+                <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">
+                  {deck.avgInterval > 0 ? `${deck.avgInterval}d` : "—"}
+                </td>
+                <td className="px-4 py-2.5 text-right font-mono">
+                  {deck.dueCount > 0 ? (
+                    <span className="text-warning">{deck.dueCount}</span>
+                  ) : (
+                    <span className="text-muted-foreground">0</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

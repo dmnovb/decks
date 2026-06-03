@@ -60,7 +60,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
                 {/* Spacer that pushes content above the fixed tab bar on mobile only */}
                 <div
                   className="shrink-0 md:hidden"
-                  style={{ height: "calc(60px + env(safe-area-inset-bottom, 0px))" }}
+                  style={{ height: "calc(64px + env(safe-area-inset-bottom, 0px))" }}
                 />
               </main>
             </div>

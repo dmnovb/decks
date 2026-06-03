@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/providers";
 import { AuthGuard } from "@/components/auth-guard";
+import { IrisProvider } from "@/providers/iris-provider";
 import { ThemeDock } from "@/components/ui/theme-dock";
 import { Toaster } from "@/components/ui/sonner";
 import { UmamiAnalytics } from "@/components/umami-analytics";
@@ -60,14 +61,12 @@ export default function RootLayout({
       >
         <Analytics />
         <UmamiAnalytics />
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-        >
-          <AuthProvider>
-            <AuthGuard>{children}</AuthGuard>
-          </AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+          <IrisProvider>
+            <AuthProvider>
+              <AuthGuard>{children}</AuthGuard>
+            </AuthProvider>
+          </IrisProvider>
           {process.env.NODE_ENV === "development" && <ThemeDock />}
           <Toaster position="top-center" />
         </ThemeProvider>

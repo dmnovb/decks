@@ -3,26 +3,22 @@
 import { useDecks } from "@/providers/decks-provider";
 import { useFolders } from "@/providers/folders-provider";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, FormEvent } from "react";
+import { useCallback, useMemo, useState, FormEvent } from "react";
 import { Flashcard } from "@/generated/prisma";
 import { Deck } from "@/types/deck";
 import { motion, AnimatePresence } from "motion/react";
-import {
-  Plus,
-  ChevronRight,
-  FolderIcon,
-  FolderOpen,
-} from "lucide-react";
+import { Plus, ChevronRight, FolderIcon, FolderOpen } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { Drawer } from "vaul";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import useCreateFolder from "@/hooks/use-create-folder";
 import { Folder } from "@/types/deck";
 import View from "@/components/view";
 import { Subtitle } from "@/app/home";
+import { useIris, useIrisControls } from "@/hooks/use-iris";
+import type { IrisConfig } from "@/hooks/use-iris";
+import { irisInputClass, irisLabelClass, irisPrimaryButtonClass } from "@/lib/iris-styles";
 
 export default function Home() {
   return <DeckGrid />;
@@ -36,13 +32,7 @@ interface Props {
   onDeckClick: (id: string) => void;
 }
 
-function FolderSection({
-  folder,
-  decks,
-  isExpanded,
-  onToggle,
-  onDeckClick,
-}: Props) {
+function FolderSection({ folder, decks, isExpanded, onToggle, onDeckClick }: Props) {
   return (
     <div>
       <button
@@ -81,9 +71,7 @@ function FolderSection({
             style={{ overflow: "hidden" }}
           >
             {decks.length === 0 ? (
-              <p className="px-4 py-4 text-xs text-muted-foreground/50">
-                No decks in this folder
-              </p>
+              <p className="px-4 py-4 text-xs text-muted-foreground/50">No decks in this folder</p>
             ) : (
               <motion.div
                 className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 pt-3 pl-2"
@@ -92,11 +80,7 @@ function FolderSection({
                 variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
               >
                 {decks.map((deck) => (
-                  <DeckCard
-                    key={deck.id}
-                    deck={deck}
-                    onClick={() => onDeckClick(deck.id!)}
-                  />
+                  <DeckCard key={deck.id} deck={deck} onClick={() => onDeckClick(deck.id!)} />
                 ))}
               </motion.div>
             )}
@@ -112,25 +96,16 @@ function FolderSection({
 function DeckGrid() {
   const { state, isLoading: decksLoading, createDeck } = useDecks();
   const { state: foldersState, isLoading: foldersLoading } = useFolders();
-  const { handleCreate: handleCreateFolder } = useCreateFolder();
   const router = useRouter();
+  const { openIris } = useIrisControls();
 
   const { decks } = state;
   const { folders } = foldersState;
-
-  // Create drawer (mobile FAB)
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createType, setCreateType] = useState<"deck" | "folder">("deck");
 
   // Deck form
   const [deckTitle, setDeckTitle] = useState("");
   const [deckDescription, setDeckDescription] = useState("");
   const [creatingDeck, setCreatingDeck] = useState(false);
-
-  // Folder form
-  const [folderTitle, setFolderTitle] = useState("");
-  const [folderDescription, setFolderDescription] = useState("");
-  const [creatingFolder, setCreatingFolder] = useState(false);
 
   // Expanded folders
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -148,36 +123,65 @@ function DeckGrid() {
     });
   };
 
-  const openCreate = (type: "deck" | "folder") => {
-    setCreateType(type);
-    setCreateOpen(true);
-  };
+  const handleCreateDeck = useCallback(
+    async (e: FormEvent<HTMLFormElement>, close: () => void) => {
+      e.preventDefault();
+      if (!deckTitle.trim()) return;
+      setCreatingDeck(true);
 
-  const handleCreateDeck = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!deckTitle.trim()) return;
-    setCreatingDeck(true);
-    const deck = await createDeck(deckTitle.trim(), deckDescription.trim() || undefined);
-    setCreatingDeck(false);
-    setCreateOpen(false);
-    setDeckTitle("");
-    setDeckDescription("");
-    if (deck?.id) router.push(`/decks/${deck.id}`);
-  };
+      try {
+        const deck = await createDeck(deckTitle.trim(), deckDescription.trim() || undefined);
+        setDeckTitle("");
+        setDeckDescription("");
+        close();
+        if (deck?.id) router.push(`/decks/${deck.id}`);
+      } finally {
+        setCreatingDeck(false);
+      }
+    },
+    [createDeck, deckDescription, deckTitle, router],
+  );
 
-  const handleCreateFolderSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!folderTitle.trim()) return;
-    setCreatingFolder(true);
-    await handleCreateFolder({
-      title: folderTitle.trim(),
-      description: folderDescription.trim() || undefined,
-    });
-    setCreatingFolder(false);
-    setCreateOpen(false);
-    setFolderTitle("");
-    setFolderDescription("");
-  };
+  const irisConfig = useMemo<IrisConfig>(
+    () => ({
+      title: "New deck",
+      label: "Create deck",
+      icon: Plus,
+      content: ({ close }) => (
+        <form onSubmit={(event) => handleCreateDeck(event, close)} className="space-y-4">
+          <div className="space-y-2">
+            <Label className={irisLabelClass}>Title</Label>
+            <Input
+              className={irisInputClass}
+              placeholder="e.g. Spanish Basics"
+              value={deckTitle}
+              onChange={(event) => setDeckTitle(event.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className={irisLabelClass}>Description</Label>
+            <Input
+              className={irisInputClass}
+              placeholder="What will you study?"
+              value={deckDescription}
+              onChange={(event) => setDeckDescription(event.target.value)}
+            />
+          </div>
+          <Button
+            type="submit"
+            disabled={!deckTitle.trim() || creatingDeck}
+            className={irisPrimaryButtonClass}
+          >
+            {creatingDeck ? "Creating..." : "Create deck"}
+          </Button>
+        </form>
+      ),
+    }),
+    [creatingDeck, deckDescription, deckTitle, handleCreateDeck],
+  );
+
+  useIris(irisConfig);
 
   const isEmpty = !isLoading && decks.length === 0 && folders.length === 0;
 
@@ -185,7 +189,7 @@ function DeckGrid() {
     <>
       <View title="Your Library" subTitle={<Subtitle />} isLoading={isLoading}>
         {isEmpty ? (
-          <EmptyState onCreateDeck={() => openCreate("deck")} />
+          <EmptyState onCreateDeck={openIris} />
         ) : (
           <div className="flex flex-col gap-3">
             {rootFolders.map((folder) => {
@@ -221,153 +225,6 @@ function DeckGrid() {
           </div>
         )}
       </View>
-
-      <button
-        onClick={() => openCreate("deck")}
-        className={cn(
-          "fixed right-4 z-30 md:hidden",
-          "w-12 h-12 rounded-full bg-foreground text-background shadow-lg",
-          "flex items-center justify-center active:scale-95 transition-transform",
-        )}
-        style={{
-          bottom: "calc(60px + env(safe-area-inset-bottom, 0px) + 16px)",
-        }}
-      >
-        <Plus size={20} strokeWidth={2.5} />
-      </button>
-
-      <Drawer.Root
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        shouldScaleBackground
-      >
-        <Drawer.Portal>
-          <Drawer.Overlay className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" />
-          <Drawer.Content
-            className="fixed bottom-0 inset-x-0 z-50 flex flex-col outline-none"
-            style={{ maxHeight: "88dvh" }}
-          >
-            <div
-              className="flex flex-col overflow-hidden rounded-t-[24px] bg-background border-t border-x border-border/40"
-              style={{ boxShadow: "0 -8px 40px rgba(0,0,0,0.5)" }}
-            >
-              <div className="flex justify-center pt-3 pb-1 shrink-0">
-                <div className="w-9 h-[3px] rounded-full bg-muted-foreground/20" />
-              </div>
-
-              <div className="overflow-y-auto overscroll-contain px-5 pb-3">
-                <Drawer.Title className="text-sm font-semibold text-foreground pt-2 pb-5">
-                  Create new
-                </Drawer.Title>
-
-                <div className="grid grid-cols-2 gap-1.5 mb-5 p-1 bg-background-2 rounded-xl border border-border/50">
-                  {(["deck", "folder"] as const).map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setCreateType(type)}
-                      className={cn(
-                        "py-2 text-sm font-medium rounded-lg transition-colors capitalize",
-                        createType === type
-                          ? "bg-foreground text-background"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-
-                {createType === "deck" && (
-                  <form onSubmit={handleCreateDeck} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground/70 uppercase tracking-widest">
-                        Title
-                      </Label>
-                      <Input
-                        placeholder="e.g. Spanish Basics"
-                        value={deckTitle}
-                        onChange={(e) => setDeckTitle(e.target.value)}
-                        autoFocus
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground/70 uppercase tracking-widest">
-                        Description{" "}
-                        <span className="normal-case font-normal text-muted-foreground/50">
-                          (optional)
-                        </span>
-                      </Label>
-                      <Input
-                        placeholder="What's this deck for?"
-                        value={deckDescription}
-                        onChange={(e) => setDeckDescription(e.target.value)}
-                      />
-                    </div>
-                    <div
-                      className="pt-2 pb-3"
-                      style={{
-                        paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
-                      }}
-                    >
-                      <Button
-                        type="submit"
-                        disabled={!deckTitle.trim() || creatingDeck}
-                        className="w-full h-12 rounded-xl font-semibold"
-                      >
-                        {creatingDeck ? "Creating…" : "Create deck"}
-                      </Button>
-                    </div>
-                  </form>
-                )}
-
-                {createType === "folder" && (
-                  <form onSubmit={handleCreateFolderSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground/70 uppercase tracking-widest">
-                        Name
-                      </Label>
-                      <Input
-                        placeholder="e.g. Japanese"
-                        value={folderTitle}
-                        onChange={(e) => setFolderTitle(e.target.value)}
-                        autoFocus
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground/70 uppercase tracking-widest">
-                        Description{" "}
-                        <span className="normal-case font-normal text-muted-foreground/50">
-                          (optional)
-                        </span>
-                      </Label>
-                      <Input
-                        placeholder="What's in this folder?"
-                        value={folderDescription}
-                        onChange={(e) => setFolderDescription(e.target.value)}
-                      />
-                    </div>
-                    <div
-                      className="pt-2"
-                      style={{
-                        paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
-                      }}
-                    >
-                      <Button
-                        type="submit"
-                        disabled={!folderTitle.trim() || creatingFolder}
-                        className="w-full h-12 rounded-xl font-semibold"
-                      >
-                        {creatingFolder ? "Creating…" : "Create folder"}
-                      </Button>
-                    </div>
-                  </form>
-                )}
-              </div>
-            </div>
-          </Drawer.Content>
-        </Drawer.Portal>
-      </Drawer.Root>
     </>
   );
 }
@@ -377,18 +234,10 @@ function DeckGrid() {
 function DeckCard({ deck, onClick }: { deck: Deck; onClick: () => void }) {
   const cards = deck.flashcards || [];
   const now = new Date();
-  const due = cards.filter(
-    (c: Flashcard) => c.nextReview && new Date(c.nextReview) <= now,
-  ).length;
+  const due = cards.filter((c: Flashcard) => c.nextReview && new Date(c.nextReview) <= now).length;
   const newCards = cards.filter((c: Flashcard) => c.totalReviews === 0).length;
-  const totalReviews = cards.reduce(
-    (s: number, c: Flashcard) => s + c.totalReviews,
-    0,
-  );
-  const correct = cards.reduce(
-    (s: number, c: Flashcard) => s + c.correctReviews,
-    0,
-  );
+  const totalReviews = cards.reduce((s: number, c: Flashcard) => s + c.totalReviews, 0);
+  const correct = cards.reduce((s: number, c: Flashcard) => s + c.correctReviews, 0);
   const accuracy = totalReviews > 0 ? Math.round((correct / totalReviews) * 100) : 0;
 
   return (
@@ -418,12 +267,13 @@ function DeckCard({ deck, onClick }: { deck: Deck; onClick: () => void }) {
             {cards.slice(0, 20).map((c: Flashcard, i: number) => (
               <div
                 key={i}
-                className={`h-1 flex-1 rounded-full ${c.difficulty >= 4
-                  ? "bg-success/60"
-                  : c.difficulty >= 2
-                    ? "bg-muted-foreground/40"
-                    : "bg-destructive/50"
-                  }`}
+                className={`h-1 flex-1 rounded-full ${
+                  c.difficulty >= 4
+                    ? "bg-success/60"
+                    : c.difficulty >= 2
+                      ? "bg-muted-foreground/40"
+                      : "bg-destructive/50"
+                }`}
               />
             ))}
           </div>
@@ -455,9 +305,7 @@ function EmptyState({ onCreateDeck }: { onCreateDeck: () => void }) {
       </div>
       <div className="text-center">
         <p className="text-sm font-medium text-foreground">No decks yet</p>
-        <p className="text-xs text-muted-foreground mt-1">
-          Create your first deck to get started
-        </p>
+        <p className="text-xs text-muted-foreground mt-1">Create your first deck to get started</p>
       </div>
       <button
         onClick={onCreateDeck}

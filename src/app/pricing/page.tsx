@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
-import { Check, Wand2, MessageSquare, FolderPlus, Sparkles } from "lucide-react";
+import { Check, Wand2, MessageSquare, FolderPlus, Sparkles, CreditCard } from "lucide-react";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CREDIT_PACKAGES, CreditPackage, formatCreditPackagePrice } from "@/lib/credit-packages";
 import { cn } from "@/lib/utils";
+import { useIris } from "@/hooks/use-iris";
+import type { IrisConfig } from "@/hooks/use-iris";
 
 // ── Animation variants (matches stats page pattern) ───────────────────────────
 
@@ -91,6 +93,19 @@ export default function PricingPage() {
   const { data, mutate } = useSWR<CreditsResponse>("/api/credits", creditsFetcher, {
     revalidateOnFocus: false,
   });
+
+  const irisConfig = useMemo<IrisConfig>(
+    () => ({
+      title: "Credits",
+      label: "Credits",
+      icon: CreditCard,
+      disabled: true,
+      content: () => null,
+    }),
+    [],
+  );
+
+  useIris(irisConfig);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

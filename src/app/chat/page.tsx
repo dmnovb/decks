@@ -9,25 +9,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, UIMessage } from "ai";
-import {
-  useConversations,
-  ConversationMessage,
-} from "@/hooks/use-conversations";
+import { useConversations, ConversationMessage } from "@/hooks/use-conversations";
 import { useDecks } from "@/providers/decks-provider";
 import { toast } from "sonner";
 import { Message } from "@/components/chat/message";
 import { StarIcon } from "@/icons";
 import { useChatState } from "@/providers/chat-state-provider";
-import {
-  ArrowUp,
-  ChevronDown,
-  Plus,
-  Trash2,
-  MessageSquare,
-} from "lucide-react";
+import { ArrowUp, ChevronDown, Plus, Trash2, MessageSquare } from "lucide-react";
+import { useIris } from "@/hooks/use-iris";
+import type { IrisConfig } from "@/hooks/use-iris";
+import { irisPanelClass } from "@/lib/iris-styles";
+import { cn } from "@/lib/utils";
 
 const GREETING: UIMessage = {
   id: "greeting",
@@ -50,12 +45,8 @@ function getMessageText(message: UIMessage): string {
 
 const Chat = () => {
   const { refreshDecks } = useDecks();
-  const {
-    conversations,
-    createConversation,
-    getConversation,
-    deleteConversation,
-  } = useConversations();
+  const { conversations, createConversation, getConversation, deleteConversation } =
+    useConversations();
 
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
@@ -79,13 +70,7 @@ const Chat = () => {
   // Lazy-init: if there's a saved conversation, start hidden so we never flash the empty state
   const [isRestoring, setIsRestoring] = useState(() => getState().conversationId !== null);
 
-  const {
-    messages,
-    setMessages,
-    sendMessage,
-    status,
-    error,
-  } = useChat({
+  const { messages, setMessages, sendMessage, status, error } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
       credentials: "include",
@@ -108,9 +93,7 @@ const Chat = () => {
     const el = scrollContainerRef.current;
     if (!el) return;
     setShowTopShadow(el.scrollTop > 8);
-    setShowBottomShadow(
-      el.scrollTop + el.clientHeight < el.scrollHeight - 8,
-    );
+    setShowBottomShadow(el.scrollTop + el.clientHeight < el.scrollHeight - 8);
   }, []);
 
   useEffect(() => {
@@ -175,17 +158,13 @@ const Chat = () => {
     async (id: string) => {
       const conversation = await getConversation(id);
       if (conversation?.messages) {
-        const loaded: UIMessage[] = conversation.messages.map(
-          (msg: ConversationMessage) => ({
-            id: msg.id,
-            role: msg.role as "user" | "assistant",
-            parts: [{ type: "text" as const, text: msg.content }],
-          }),
-        );
+        const loaded: UIMessage[] = conversation.messages.map((msg: ConversationMessage) => ({
+          id: msg.id,
+          role: msg.role as "user" | "assistant",
+          parts: [{ type: "text" as const, text: msg.content }],
+        }));
         setMessages(
-          loaded.length === 0 || loaded[0].role !== "assistant"
-            ? [GREETING, ...loaded]
-            : loaded,
+          loaded.length === 0 || loaded[0].role !== "assistant" ? [GREETING, ...loaded] : loaded,
         );
         setConversationId(id);
       }
@@ -199,9 +178,8 @@ const Chat = () => {
     setInputValue("");
   }, [setMessages]);
 
-  const handleDeleteConversation = useCallback(
-    async (e: React.MouseEvent, id: string) => {
-      e.stopPropagation();
+  const deleteConversationById = useCallback(
+    async (id: string) => {
       try {
         await deleteConversation(id);
         if (conversationId === id) startNewConversation();
@@ -213,6 +191,14 @@ const Chat = () => {
     [deleteConversation, conversationId, startNewConversation],
   );
 
+  const handleDeleteConversation = useCallback(
+    (e: React.MouseEvent, id: string) => {
+      e.stopPropagation();
+      void deleteConversationById(id);
+    },
+    [deleteConversationById],
+  );
+
   const handleSend = useCallback(async () => {
     const trimmed = inputValue.trim();
     if (!trimmed || isLoading) return;
@@ -220,8 +206,7 @@ const Chat = () => {
     let activeConvoId = conversationId;
     if (!activeConvoId) {
       try {
-        const title =
-          trimmed.slice(0, 50) + (trimmed.length > 50 ? "..." : "");
+        const title = trimmed.slice(0, 50) + (trimmed.length > 50 ? "..." : "");
         const newConvo = await createConversation(title);
         activeConvoId = newConvo.id;
         setConversationId(activeConvoId);
@@ -236,9 +221,83 @@ const Chat = () => {
     sendMessage({ text: trimmed });
   }, [inputValue, isLoading, conversationId, createConversation, sendMessage]);
 
-  const currentConversation = conversations.find(
-    (c) => c.id === conversationId,
+  const currentConversation = conversations.find((c) => c.id === conversationId);
+
+  const irisConfig = useMemo<IrisConfig>(
+    () => ({
+      title: "Conversations",
+      label: "Open conversations",
+      icon: MessageSquare,
+      content: ({ close }) => (
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => {
+              startNewConversation();
+              close();
+            }}
+            className={`${irisPanelClass} flex h-11 w-full items-center gap-2.5 px-3 text-sm font-medium text-background transition-[background-color,transform] duration-150 hover:bg-background/[0.1] active:scale-[0.98]`}
+          >
+            <Plus size={15} />
+            New chat
+          </button>
+
+          {conversations.length === 0 ? (
+            <div className={`${irisPanelClass} p-4`}>
+              <p className="text-sm text-background/60">No conversations yet</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {conversations.slice(0, 12).map((convo) => {
+                const active = convo.id === conversationId;
+
+                return (
+                  <div
+                    key={convo.id}
+                    className={cn(
+                      irisPanelClass,
+                      "flex w-full items-center gap-2 p-2 transition-[background-color] duration-150 hover:bg-background/[0.1]",
+                      active && "bg-background/[0.12]",
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await loadConversation(convo.id);
+                        close();
+                      }}
+                      className="min-w-0 flex-1 rounded-xl px-1 py-1 text-left transition-transform duration-150 active:scale-[0.98]"
+                    >
+                      <span className="block truncate text-sm font-medium text-background">
+                        {convo.title || "Untitled"}
+                      </span>
+                      <span className="mt-1 block text-xs text-background/45">
+                        {convo._count?.messages ?? 0} messages
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Delete conversation"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void deleteConversationById(convo.id);
+                      }}
+                      className="flex size-8 shrink-0 items-center justify-center rounded-full text-background/45 transition-[background-color,color,transform] duration-150 hover:bg-background/10 hover:text-background active:scale-[0.96]"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ),
+    }),
+    [conversationId, conversations, deleteConversationById, loadConversation, startNewConversation],
   );
+
+  useIris(irisConfig);
 
   return (
     <div className="flex flex-col h-full">
@@ -246,51 +305,49 @@ const Chat = () => {
       <div className="flex items-center justify-between px-4 py-4 sm:px-8 sm:py-5 border-b border-border shrink-0">
         <div>
           <h1 className="text-sm font-semibold text-foreground">Ace</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Your language learning companion
-          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">Your language learning companion</p>
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <MessageSquare className="w-4 h-4" />
-              <span className="max-w-[120px] truncate">
-                {currentConversation?.title || "New Chat"}
-              </span>
-              <ChevronDown className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64">
-            <DropdownMenuItem onClick={startNewConversation} className="gap-2">
-              <Plus className="w-4 h-4" />
-              New Chat
-            </DropdownMenuItem>
-            {conversations.length > 0 && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Recent Conversations</DropdownMenuLabel>
-                {conversations.slice(0, 10).map((convo) => (
-                  <DropdownMenuItem
-                    key={convo.id}
-                    onClick={() => loadConversation(convo.id)}
-                    className="flex items-center justify-between group"
-                  >
-                    <span className="truncate flex-1">
-                      {convo.title || "Untitled"}
-                    </span>
-                    <button
-                      onClick={(e) => handleDeleteConversation(e, convo.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded transition-opacity"
+        <div className="hidden md:block">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <MessageSquare className="w-4 h-4" />
+                <span className="max-w-[120px] truncate">
+                  {currentConversation?.title || "New Chat"}
+                </span>
+                <ChevronDown className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuItem onClick={startNewConversation} className="gap-2">
+                <Plus className="w-4 h-4" />
+                New Chat
+              </DropdownMenuItem>
+              {conversations.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Recent Conversations</DropdownMenuLabel>
+                  {conversations.slice(0, 10).map((convo) => (
+                    <DropdownMenuItem
+                      key={convo.id}
+                      onClick={() => loadConversation(convo.id)}
+                      className="flex items-center justify-between group"
                     >
-                      <Trash2 className="w-3 h-3 text-destructive" />
-                    </button>
-                  </DropdownMenuItem>
-                ))}
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                      <span className="truncate flex-1">{convo.title || "Untitled"}</span>
+                      <button
+                        onClick={(e) => handleDeleteConversation(e, convo.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded transition-opacity"
+                      >
+                        <Trash2 className="w-3 h-3 text-destructive" />
+                      </button>
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* Messages */}
@@ -299,8 +356,7 @@ const Chat = () => {
           className="pointer-events-none absolute inset-x-0 top-0 h-12 z-10 transition-opacity duration-300"
           style={{
             opacity: showTopShadow ? 1 : 0,
-            background:
-              "linear-gradient(to bottom, var(--background) 0%, transparent 100%)",
+            background: "linear-gradient(to bottom, var(--background) 0%, transparent 100%)",
           }}
         />
 
@@ -310,15 +366,13 @@ const Chat = () => {
           style={{ opacity: isRestoring ? 0 : 1 }}
         >
           {messages.map((message) => {
-            if (message.role !== "user" && message.role !== "assistant")
-              return null;
+            if (message.role !== "user" && message.role !== "assistant") return null;
             const text = getMessageText(message);
             if (!text) return null;
 
             const isLastAssistant =
               message.role === "assistant" &&
-              message.id ===
-                messages.filter((m) => m.role === "assistant").pop()?.id;
+              message.id === messages.filter((m) => m.role === "assistant").pop()?.id;
 
             return (
               <Message
@@ -364,8 +418,7 @@ const Chat = () => {
           className="pointer-events-none absolute inset-x-0 bottom-0 h-12 z-10 transition-opacity duration-300"
           style={{
             opacity: showBottomShadow ? 1 : 0,
-            background:
-              "linear-gradient(to top, var(--background) 0%, transparent 100%)",
+            background: "linear-gradient(to top, var(--background) 0%, transparent 100%)",
           }}
         />
       </div>
@@ -384,8 +437,7 @@ const Chat = () => {
             onChange={(e) => {
               setInputValue(e.target.value);
               e.target.style.height = "auto";
-              e.target.style.height =
-                Math.min(e.target.scrollHeight, 120) + "px";
+              e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -409,9 +461,7 @@ const Chat = () => {
             <ArrowUp className="w-3.5 h-3.5" />
           </Button>
         </div>
-        {error && (
-          <div className="mt-2 text-xs text-red-500">{String(error)}</div>
-        )}
+        {error && <div className="mt-2 text-xs text-red-500">{String(error)}</div>}
       </form>
     </div>
   );
