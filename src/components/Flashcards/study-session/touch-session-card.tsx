@@ -1,16 +1,12 @@
 "use client";
 
 import { Flashcard } from "@/generated/prisma";
-import {
-  motion,
-  AnimatePresence,
-  useMotionValue,
-  useTransform,
-  type PanInfo,
-} from "motion/react";
+import { motion, AnimatePresence, useMotionValue, useTransform, type PanInfo } from "motion/react";
 import { useState, useCallback } from "react";
 import { RotateCcw, Minus, Check, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { TtsPlaybackController } from "@/hooks/use-tts-playback";
+import { TtsPlaybackControls } from "./tts-controls";
 
 const SWIPE_THRESHOLD = 80;
 
@@ -24,6 +20,7 @@ interface TouchSessionCardProps {
   onFlip: () => void;
   onRate: (quality: number) => void;
   isLoading: boolean;
+  ttsPlayback: TtsPlaybackController;
 }
 
 const ratings = [
@@ -75,6 +72,7 @@ export function TouchSessionCard({
   onFlip,
   onRate,
   isLoading,
+  ttsPlayback,
 }: TouchSessionCardProps) {
   const x = useMotionValue(0);
 
@@ -82,11 +80,11 @@ export function TouchSessionCard({
   const rotate = useTransform(x, [-220, 220], [-9, 9]);
 
   // Directional color wash
-  const goodOverlay  = useTransform(x, [-SWIPE_THRESHOLD, 0], [0.14, 0]);
+  const goodOverlay = useTransform(x, [-SWIPE_THRESHOLD, 0], [0.14, 0]);
   const againOverlay = useTransform(x, [0, SWIPE_THRESHOLD], [0, 0.14]);
 
   // Stamp badges fade in as you approach threshold
-  const goodStamp  = useTransform(x, [-SWIPE_THRESHOLD * 2, -SWIPE_THRESHOLD * 0.6], [1, 0]);
+  const goodStamp = useTransform(x, [-SWIPE_THRESHOLD * 2, -SWIPE_THRESHOLD * 0.6], [1, 0]);
   const againStamp = useTransform(x, [SWIPE_THRESHOLD * 0.6, SWIPE_THRESHOLD * 2], [0, 1]);
 
   const [thresholdCrossed, setThresholdCrossed] = useState(false);
@@ -211,6 +209,18 @@ export function TouchSessionCard({
                   className="flex flex-col px-8 py-7"
                   style={{ minHeight: "360px" }}
                 >
+                  <TtsPlaybackControls
+                    side="front"
+                    text={card.front}
+                    cardId={card.id}
+                    activeSide={ttsPlayback.activeSide}
+                    disabled={isLoading}
+                    voiceId={ttsPlayback.voiceId}
+                    voicePresets={ttsPlayback.voicePresets}
+                    onVoiceChange={ttsPlayback.setVoiceId}
+                    onPlay={ttsPlayback.play}
+                    className="absolute right-4 top-4 z-30"
+                  />
                   <span className="text-[9px] font-semibold tracking-[0.28em] uppercase text-muted-foreground/25 mb-auto">
                     Q.
                   </span>
@@ -245,9 +255,22 @@ export function TouchSessionCard({
                 >
                   {/* Recalled question */}
                   <div className="mb-5">
-                    <span className="text-[9px] font-semibold tracking-[0.28em] uppercase text-muted-foreground/25">
-                      Q.
-                    </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[9px] font-semibold tracking-[0.28em] uppercase text-muted-foreground/25">
+                        Q.
+                      </span>
+                      <TtsPlaybackControls
+                        side="front"
+                        text={card.front}
+                        cardId={card.id}
+                        activeSide={ttsPlayback.activeSide}
+                        disabled={isLoading}
+                        voiceId={ttsPlayback.voiceId}
+                        voicePresets={ttsPlayback.voicePresets}
+                        onVoiceChange={ttsPlayback.setVoiceId}
+                        onPlay={ttsPlayback.play}
+                      />
+                    </div>
                     <p className="text-sm text-muted-foreground/70 mt-1.5 leading-relaxed">
                       {card.front}
                     </p>
@@ -257,9 +280,22 @@ export function TouchSessionCard({
 
                   {/* Answer — the star */}
                   <div className="flex-1">
-                    <span className="text-[9px] font-semibold tracking-[0.28em] uppercase text-muted-foreground/25">
-                      A.
-                    </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[9px] font-semibold tracking-[0.28em] uppercase text-muted-foreground/25">
+                        A.
+                      </span>
+                      <TtsPlaybackControls
+                        side="back"
+                        text={card.back}
+                        cardId={card.id}
+                        activeSide={ttsPlayback.activeSide}
+                        disabled={isLoading}
+                        voiceId={ttsPlayback.voiceId}
+                        voicePresets={ttsPlayback.voicePresets}
+                        onVoiceChange={ttsPlayback.setVoiceId}
+                        onPlay={ttsPlayback.play}
+                      />
+                    </div>
                     <p className="text-[22px] font-semibold text-foreground mt-2 leading-relaxed">
                       {card.back}
                     </p>
