@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { Folder } from "@/types/deck";
 import View from "@/components/view";
 import { Subtitle } from "@/app/home";
-import { useIris, useIrisControls } from "@/hooks/use-iris";
+import { useIris, useOpenIris } from "@/hooks/use-iris";
 import type { IrisConfig } from "@/hooks/use-iris";
 import { irisInputClass, irisLabelClass, irisPrimaryButtonClass } from "@/lib/iris-styles";
 
@@ -97,7 +97,7 @@ function DeckGrid() {
   const { state, isLoading: decksLoading, createDeck } = useDecks();
   const { state: foldersState, isLoading: foldersLoading } = useFolders();
   const router = useRouter();
-  const { openIris } = useIrisControls();
+  const openIris = useOpenIris();
 
   const { decks } = state;
   const { folders } = foldersState;

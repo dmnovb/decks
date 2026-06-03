@@ -3,7 +3,15 @@
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { Plus, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
@@ -25,29 +33,43 @@ interface IrisRegistration {
   config: IrisConfig;
 }
 
-interface IrisContextValue {
-  config: IrisConfig | null;
-  isOpen: boolean;
+interface IrisRegistrationContextValue {
   registerIris: (token: symbol, config: IrisConfig) => void;
   unregisterIris: (token: symbol) => void;
   openIris: () => void;
   closeIris: () => void;
 }
 
-const IrisContext = createContext<IrisContextValue | null>(null);
+interface IrisControlsContextValue {
+  config: IrisConfig | null;
+  isOpen: boolean;
+  openIris: () => void;
+  closeIris: () => void;
+}
+
+const IrisRegistrationContext = createContext<IrisRegistrationContextValue | null>(null);
+const IrisControlsContext = createContext<IrisControlsContextValue | null>(null);
 
 export function IrisProvider({ children }: { children: ReactNode }) {
   const [registration, setRegistration] = useState<IrisRegistration | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const registrationRef = useRef<IrisRegistration | null>(null);
   const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
+  useEffect(() => {
+    registrationRef.current = registration;
+  }, [registration]);
+
   const registerIris = useCallback((token: symbol, config: IrisConfig) => {
-    setRegistration({ token, config });
+    setRegistration((current) => {
+      if (current?.token === token && current.config === config) return current;
+      return { token, config };
+    });
   }, []);
 
   const unregisterIris = useCallback((token: symbol) => {
@@ -59,51 +81,67 @@ export function IrisProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const openIris = useCallback(() => {
-    setIsOpen(() => {
-      if (!registration || registration.config.disabled) return false;
-      return true;
-    });
-  }, [registration]);
+    const current = registrationRef.current;
+    setIsOpen(Boolean(current && !current.config.disabled));
+  }, []);
 
   const closeIris = useCallback(() => {
     setIsOpen(false);
   }, []);
 
-  const value = useMemo<IrisContextValue>(
+  const registrationValue = useMemo<IrisRegistrationContextValue>(
     () => ({
-      config: registration?.config ?? null,
-      isOpen,
       registerIris,
       unregisterIris,
       openIris,
       closeIris,
     }),
-    [closeIris, isOpen, openIris, registerIris, registration, unregisterIris],
+    [closeIris, openIris, registerIris, unregisterIris],
+  );
+
+  const controlsValue = useMemo<IrisControlsContextValue>(
+    () => ({
+      config: registration?.config ?? null,
+      isOpen,
+      openIris,
+      closeIris,
+    }),
+    [closeIris, isOpen, openIris, registration?.config],
   );
 
   return (
-    <IrisContext.Provider value={value}>
-      <LayoutGroup id="iris-root">
-        {children}
-        {isMounted &&
-          createPortal(
-            <IrisPortal
-              config={registration?.config ?? null}
-              isOpen={isOpen}
-              closeIris={closeIris}
-              prefersReducedMotion={prefersReducedMotion}
-            />,
-            document.body,
-          )}
-      </LayoutGroup>
-    </IrisContext.Provider>
+    <IrisRegistrationContext.Provider value={registrationValue}>
+      <IrisControlsContext.Provider value={controlsValue}>
+        <LayoutGroup id="iris-root">
+          {children}
+          {isMounted &&
+            createPortal(
+              <IrisPortal
+                config={registration?.config ?? null}
+                isOpen={isOpen}
+                closeIris={closeIris}
+                prefersReducedMotion={prefersReducedMotion}
+              />,
+              document.body,
+            )}
+        </LayoutGroup>
+      </IrisControlsContext.Provider>
+    </IrisRegistrationContext.Provider>
   );
 }
 
-export function useIrisContext() {
-  const context = useContext(IrisContext);
+export function useIrisRegistrationContext() {
+  const context = useContext(IrisRegistrationContext);
   if (!context) {
-    throw new Error("useIrisContext must be used within IrisProvider");
+    throw new Error("useIrisRegistrationContext must be used within IrisProvider");
+  }
+  return context;
+}
+
+export function useIrisControlsContext() {
+  const context = useContext(IrisControlsContext);
+  if (!context) {
+    throw new Error("useIrisControlsContext must be used within IrisProvider");
   }
   return context;
 }

@@ -2,13 +2,16 @@
 
 import { useEffect, useRef } from "react";
 import type { IrisConfig } from "@/providers/iris-provider";
-import { useIrisContext } from "@/providers/iris-provider";
+import {
+  useIrisControlsContext,
+  useIrisRegistrationContext,
+} from "@/providers/iris-provider";
 
 export type { IrisConfig, IrisSheetProps } from "@/providers/iris-provider";
 
 export function useIris(config: IrisConfig | null) {
   const tokenRef = useRef<symbol | null>(null);
-  const { registerIris, unregisterIris } = useIrisContext();
+  const { registerIris, unregisterIris } = useIrisRegistrationContext();
 
   if (!tokenRef.current) {
     tokenRef.current = Symbol("iris-registration");
@@ -28,6 +31,11 @@ export function useIris(config: IrisConfig | null) {
 }
 
 export function useIrisControls() {
-  const { isOpen, openIris, closeIris, config } = useIrisContext();
+  const { isOpen, openIris, closeIris, config } = useIrisControlsContext();
   return { isOpen, openIris, closeIris, config };
+}
+
+export function useOpenIris() {
+  const { openIris } = useIrisRegistrationContext();
+  return openIris;
 }
