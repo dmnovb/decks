@@ -7,12 +7,7 @@ import { useMemo, useState, FormEvent } from "react";
 import { Flashcard } from "@/generated/prisma";
 import { Deck } from "@/types/deck";
 import { motion, AnimatePresence } from "motion/react";
-import {
-  Plus,
-  ChevronRight,
-  FolderIcon,
-  FolderOpen,
-} from "lucide-react";
+import { Plus, ChevronRight, FolderIcon, FolderOpen } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Drawer } from "vaul";
 import { Input } from "@/components/ui/input";
@@ -30,23 +25,32 @@ export default function Home() {
 
 interface Props {
   folder: Folder;
-  decks: Deck[];
-  isExpanded: boolean;
-  onToggle: () => void;
+  foldersByParentId: Map<string | null, Folder[]>;
+  decksByFolderId: Map<string | null, Deck[]>;
+  expandedFolders: Set<string>;
+  onToggle: (id: string) => void;
   onDeckClick: (id: string) => void;
+  depth?: number;
 }
 
 function FolderSection({
   folder,
-  decks,
-  isExpanded,
+  foldersByParentId,
+  decksByFolderId,
+  expandedFolders,
   onToggle,
   onDeckClick,
+  depth = 0,
 }: Props) {
+  const childFolders = foldersByParentId.get(folder.id) ?? [];
+  const childDecks = decksByFolderId.get(folder.id) ?? [];
+  const childCount = childFolders.length + childDecks.length;
+  const isExpanded = expandedFolders.has(folder.id);
+
   return (
     <div>
       <button
-        onClick={onToggle}
+        onClick={() => onToggle(folder.id)}
         className={cn(
           "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors text-sm",
           isExpanded
@@ -66,7 +70,7 @@ function FolderSection({
         </span>
         <span className="flex-1 font-medium text-left truncate">{folder.title}</span>
         <span className="text-[11px] text-muted-foreground/40 tabular-nums shrink-0">
-          {decks.length}
+          {childCount}
         </span>
       </button>
 
@@ -80,26 +84,44 @@ function FolderSection({
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             style={{ overflow: "hidden" }}
           >
-            {decks.length === 0 ? (
-              <p className="px-4 py-4 text-xs text-muted-foreground/50">
-                No decks in this folder
-              </p>
-            ) : (
-              <motion.div
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 pt-3 pl-2"
-                initial="hidden"
-                animate="visible"
-                variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
-              >
-                {decks.map((deck) => (
-                  <DeckCard
-                    key={deck.id}
-                    deck={deck}
-                    onClick={() => onDeckClick(deck.id!)}
-                  />
-                ))}
-              </motion.div>
-            )}
+            <div
+              className={cn(
+                "pt-3 space-y-3",
+                depth > 0 ? "ml-4 pl-3 border-l border-border/60" : "pl-2",
+              )}
+            >
+              {childCount === 0 ? (
+                <p className="px-4 py-2 text-xs text-muted-foreground/50">Empty folder</p>
+              ) : (
+                <>
+                  {childFolders.map((child) => (
+                    <FolderSection
+                      key={child.id}
+                      folder={child}
+                      foldersByParentId={foldersByParentId}
+                      decksByFolderId={decksByFolderId}
+                      expandedFolders={expandedFolders}
+                      onToggle={onToggle}
+                      onDeckClick={onDeckClick}
+                      depth={depth + 1}
+                    />
+                  ))}
+
+                  {childDecks.length > 0 && (
+                    <motion.div
+                      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
+                      initial="hidden"
+                      animate="visible"
+                      variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
+                    >
+                      {childDecks.map((deck) => (
+                        <DeckCard key={deck.id} deck={deck} onClick={() => onDeckClick(deck.id!)} />
+                      ))}
+                    </motion.div>
+                  )}
+                </>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -135,8 +157,30 @@ function DeckGrid() {
   // Expanded folders
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
-  const rootFolders = useMemo(() => folders.filter((f) => !f.parentId), [folders]);
-  const rootDecks = useMemo(() => decks.filter((d) => !d.folderId), [decks]);
+  const foldersByParentId = useMemo(() => {
+    const grouped = new Map<string | null, Folder[]>();
+    for (const folder of folders) {
+      const key = folder.parentId ?? null;
+      const existing = grouped.get(key);
+      if (existing) existing.push(folder);
+      else grouped.set(key, [folder]);
+    }
+    return grouped;
+  }, [folders]);
+
+  const decksByFolderId = useMemo(() => {
+    const grouped = new Map<string | null, Deck[]>();
+    for (const deck of decks) {
+      const key = deck.folderId ?? null;
+      const existing = grouped.get(key);
+      if (existing) existing.push(deck);
+      else grouped.set(key, [deck]);
+    }
+    return grouped;
+  }, [decks]);
+
+  const rootFolders = foldersByParentId.get(null) ?? [];
+  const rootDecks = decksByFolderId.get(null) ?? [];
   const isLoading = decksLoading || foldersLoading;
 
   const toggleFolder = (id: string) => {
@@ -189,14 +233,14 @@ function DeckGrid() {
         ) : (
           <div className="flex flex-col gap-3">
             {rootFolders.map((folder) => {
-              const folderDecks = decks.filter((d) => d.folderId === folder.id);
               return (
                 <FolderSection
                   key={folder.id}
                   folder={folder}
-                  decks={folderDecks}
-                  isExpanded={expandedFolders.has(folder.id!)}
-                  onToggle={() => toggleFolder(folder.id!)}
+                  foldersByParentId={foldersByParentId}
+                  decksByFolderId={decksByFolderId}
+                  expandedFolders={expandedFolders}
+                  onToggle={toggleFolder}
                   onDeckClick={(id) => router.push(`/decks/${id}`)}
                 />
               );
@@ -236,11 +280,7 @@ function DeckGrid() {
         <Plus size={20} strokeWidth={2.5} />
       </button>
 
-      <Drawer.Root
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        shouldScaleBackground
-      >
+      <Drawer.Root open={createOpen} onOpenChange={setCreateOpen} shouldScaleBackground>
         <Drawer.Portal>
           <Drawer.Overlay className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" />
           <Drawer.Content
@@ -377,18 +417,10 @@ function DeckGrid() {
 function DeckCard({ deck, onClick }: { deck: Deck; onClick: () => void }) {
   const cards = deck.flashcards || [];
   const now = new Date();
-  const due = cards.filter(
-    (c: Flashcard) => c.nextReview && new Date(c.nextReview) <= now,
-  ).length;
+  const due = cards.filter((c: Flashcard) => c.nextReview && new Date(c.nextReview) <= now).length;
   const newCards = cards.filter((c: Flashcard) => c.totalReviews === 0).length;
-  const totalReviews = cards.reduce(
-    (s: number, c: Flashcard) => s + c.totalReviews,
-    0,
-  );
-  const correct = cards.reduce(
-    (s: number, c: Flashcard) => s + c.correctReviews,
-    0,
-  );
+  const totalReviews = cards.reduce((s: number, c: Flashcard) => s + c.totalReviews, 0);
+  const correct = cards.reduce((s: number, c: Flashcard) => s + c.correctReviews, 0);
   const accuracy = totalReviews > 0 ? Math.round((correct / totalReviews) * 100) : 0;
 
   return (
@@ -418,12 +450,13 @@ function DeckCard({ deck, onClick }: { deck: Deck; onClick: () => void }) {
             {cards.slice(0, 20).map((c: Flashcard, i: number) => (
               <div
                 key={i}
-                className={`h-1 flex-1 rounded-full ${c.difficulty >= 4
-                  ? "bg-success/60"
-                  : c.difficulty >= 2
-                    ? "bg-muted-foreground/40"
-                    : "bg-destructive/50"
-                  }`}
+                className={`h-1 flex-1 rounded-full ${
+                  c.difficulty >= 4
+                    ? "bg-success/60"
+                    : c.difficulty >= 2
+                      ? "bg-muted-foreground/40"
+                      : "bg-destructive/50"
+                }`}
               />
             ))}
           </div>
@@ -455,9 +488,7 @@ function EmptyState({ onCreateDeck }: { onCreateDeck: () => void }) {
       </div>
       <div className="text-center">
         <p className="text-sm font-medium text-foreground">No decks yet</p>
-        <p className="text-xs text-muted-foreground mt-1">
-          Create your first deck to get started
-        </p>
+        <p className="text-xs text-muted-foreground mt-1">Create your first deck to get started</p>
       </div>
       <button
         onClick={onCreateDeck}
