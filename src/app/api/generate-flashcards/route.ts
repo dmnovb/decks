@@ -8,6 +8,7 @@ import {
   validateJsonBody,
 } from "@/lib/api/validation";
 import { verifyToken } from "@/lib/auth/helpers";
+import { CREDIT_COSTS } from "@/lib/credit-costs";
 import { z } from "zod";
 import {
   creditsRequiredResponse,
@@ -75,7 +76,8 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: false, error: "Deck not found" }, { status: 404 });
     }
 
-    await spendCredits(payload.userId, count, "generate_flashcards", { deckId, count });
+    const creditCost = count * CREDIT_COSTS.generatedFlashcard;
+    await spendCredits(payload.userId, creditCost, "generate_flashcards", { deckId, count });
 
     const fullPrompt = `Generate ${count} high-quality flashcards for: ${prompt}
 
@@ -98,7 +100,7 @@ Make the flashcards educational, clear, and appropriate for language learning.`;
         messages: [{ role: "user", content: fullPrompt }],
       });
     } catch (error) {
-      await refundFailedGeneration(payload.userId, count, deckId, count);
+      await refundFailedGeneration(payload.userId, creditCost, deckId, count);
       throw error;
     }
 
@@ -113,7 +115,7 @@ Make the flashcards educational, clear, and appropriate for language learning.`;
       parsedResponse = JSON.parse(cleanedResponse);
     } catch {
       console.error("Failed to parse AI response:", responseText);
-      await refundFailedGeneration(payload.userId, count, deckId, count);
+      await refundFailedGeneration(payload.userId, creditCost, deckId, count);
       return Response.json(
         { success: false, error: "Failed to parse AI response" },
         { status: 500 },
@@ -123,7 +125,7 @@ Make the flashcards educational, clear, and appropriate for language learning.`;
     const flashcardsResult = generatedFlashcardsResponseSchema.safeParse(parsedResponse);
     if (!flashcardsResult.success) {
       console.error("AI response failed validation:", flashcardsResult.error);
-      await refundFailedGeneration(payload.userId, count, deckId, count);
+      await refundFailedGeneration(payload.userId, creditCost, deckId, count);
       return Response.json(
         { success: false, error: "AI response did not match expected flashcard format" },
         { status: 500 },

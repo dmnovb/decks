@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
+import { CREDIT_COSTS } from "@/lib/credit-costs";
 import { getOwnedOptionalFolderId } from "@/lib/ownership";
 import { apiErrorResponseOptions, nonEmptyString, validateJsonBody } from "@/lib/api/validation";
 import { z } from "zod";
@@ -16,7 +17,7 @@ const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY!, timeout: 6000
 
 async function refundFailedAgentStreamRequest(userId: string) {
   try {
-    await refundCredits(userId, 1, "ai_agent_stream_message_failed", {
+    await refundCredits(userId, CREDIT_COSTS.aiAction, "ai_agent_stream_message_failed", {
       route: "/api/ai/agent/stream",
     });
   } catch (error) {
@@ -400,7 +401,9 @@ export async function POST(request: NextRequest) {
     const model = "claude-sonnet-4-6";
     const maxTokens = 4096;
 
-    await spendCredits(userId, 1, "ai_agent_stream_message", { route: "/api/ai/agent/stream" });
+    await spendCredits(userId, CREDIT_COSTS.aiAction, "ai_agent_stream_message", {
+      route: "/api/ai/agent/stream",
+    });
 
     const userMemory = await prisma.userMemory.findUnique({ where: { userId } });
 

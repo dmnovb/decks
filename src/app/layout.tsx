@@ -67,7 +67,7 @@ export default function RootLayout({
               <AuthGuard>{children}</AuthGuard>
             </AuthProvider>
           </IrisProvider>
-          {process.env.NODE_ENV === "development" && <ThemeDock />}
+          {/* {process.env.NODE_ENV === "development" && <ThemeDock />} */}
           <Toaster position="top-center" />
         </ThemeProvider>
       </body>

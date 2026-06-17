@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { apiErrorResponseOptions, nonEmptyString, validateJsonBody } from "@/lib/api/validation";
 import { verifyToken } from "@/lib/auth/helpers";
+import { CREDIT_COSTS } from "@/lib/credit-costs";
 import {
   creditsRequiredResponse,
   InsufficientCreditsError,
@@ -38,7 +39,9 @@ function getAuthenticatedUserId(request: NextRequest): string | null {
 }
 
 function getTtsCreditCost(charCount: number) {
-  return charCount <= ELEVENLABS_LONG_PLAYBACK_THRESHOLD ? 1 : 2;
+  return charCount <= ELEVENLABS_LONG_PLAYBACK_THRESHOLD
+    ? CREDIT_COSTS.ttsShortPlayback
+    : CREDIT_COSTS.ttsLongPlayback;
 }
 
 async function refundFailedTtsPlayback(

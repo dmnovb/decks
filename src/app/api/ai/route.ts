@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import { verifyToken } from "@/lib/auth/helpers";
 import { apiErrorResponseOptions, nonEmptyString, validateJsonBody } from "@/lib/api/validation";
+import { CREDIT_COSTS } from "@/lib/credit-costs";
 import { z } from "zod";
 import {
   creditsRequiredResponse,
@@ -37,7 +38,10 @@ function getAuthenticatedUserId(request: NextRequest): string | null {
 
 async function refundFailedAiRequest(userId: string, method: "GET" | "POST") {
   try {
-    await refundCredits(userId, 1, "ai_message_failed", { route: "/api/ai", method });
+    await refundCredits(userId, CREDIT_COSTS.aiMessage, "ai_message_failed", {
+      route: "/api/ai",
+      method,
+    });
   } catch (error) {
     console.error("Failed to refund credits:", error);
   }
@@ -55,7 +59,10 @@ export async function POST(request: NextRequest) {
 
     const { message, systemPrompt, context, history } = body.data;
 
-    await spendCredits(userId, 1, "ai_message", { route: "/api/ai", method: "POST" });
+    await spendCredits(userId, CREDIT_COSTS.aiMessage, "ai_message", {
+      route: "/api/ai",
+      method: "POST",
+    });
 
     let system = "";
     if (systemPrompt) system += `System Instructions: ${systemPrompt}\n\n`;
@@ -112,7 +119,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    await spendCredits(userId, 1, "ai_message", { route: "/api/ai", method: "GET" });
+    await spendCredits(userId, CREDIT_COSTS.aiMessage, "ai_message", {
+      route: "/api/ai",
+      method: "GET",
+    });
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({

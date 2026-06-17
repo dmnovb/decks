@@ -6,6 +6,7 @@ import { Check, Wand2, MessageSquare, FolderPlus, Sparkles, CreditCard } from "l
 import useSWR from "swr";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { CREDIT_COSTS } from "@/lib/credit-costs";
 import { CREDIT_PACKAGES, CreditPackage, formatCreditPackagePrice } from "@/lib/credit-packages";
 import { cn } from "@/lib/utils";
 import { useIris } from "@/hooks/use-iris";
@@ -30,25 +31,25 @@ const aiActions = [
     icon: MessageSquare,
     label: "Chat with Ace",
     description: "Send a message to your AI study assistant",
-    cost: 1,
+    cost: CREDIT_COSTS.aiMessage,
   },
   {
     icon: Sparkles,
     label: "AI card suggestions",
     description: "Get improvement hints on existing cards",
-    cost: 2,
+    cost: CREDIT_COSTS.aiAction,
   },
   {
     icon: Wand2,
     label: "Generate flashcards",
     description: "AI creates cards from your text or topic",
-    cost: 5,
+    cost: `${CREDIT_COSTS.generatedFlashcard}/card`,
   },
   {
     icon: FolderPlus,
     label: "Create full deck with AI",
     description: "Generates a complete deck in one operation",
-    cost: 10,
+    cost: CREDIT_COSTS.aiAction,
   },
 ] as const;
 

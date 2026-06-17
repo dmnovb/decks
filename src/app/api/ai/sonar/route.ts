@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import { verifyToken } from "@/lib/auth/helpers";
 import { apiErrorResponseOptions, nonEmptyString, validateJsonBody } from "@/lib/api/validation";
+import { CREDIT_COSTS } from "@/lib/credit-costs";
 import { z } from "zod";
 import {
   creditsRequiredResponse,
@@ -23,7 +24,9 @@ const sonarPromptSchema = z.object({
 
 async function refundFailedAiRequest(userId: string) {
   try {
-    await refundCredits(userId, 1, "ai_sonar_failed", { route: "/api/ai/sonar" });
+    await refundCredits(userId, CREDIT_COSTS.aiMessage, "ai_sonar_failed", {
+      route: "/api/ai/sonar",
+    });
   } catch (error) {
     console.error("Failed to refund credits:", error);
   }
@@ -42,7 +45,9 @@ export async function POST(request: NextRequest) {
 
     const { prompt, system } = body.data;
 
-    await spendCredits(payload.userId, 1, "ai_sonar", { route: "/api/ai/sonar" });
+    await spendCredits(payload.userId, CREDIT_COSTS.aiMessage, "ai_sonar", {
+      route: "/api/ai/sonar",
+    });
 
     let response;
     try {

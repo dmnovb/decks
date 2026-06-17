@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
+import { CREDIT_COSTS } from "@/lib/credit-costs";
 import { getOwnedOptionalFolderId } from "@/lib/ownership";
 import { apiErrorResponseOptions, nonEmptyString, validateJsonBody } from "@/lib/api/validation";
 import { z } from "zod";
@@ -16,7 +17,9 @@ const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_KEY! });
 
 async function refundFailedAgentRequest(userId: string) {
   try {
-    await refundCredits(userId, 1, "ai_agent_message_failed", { route: "/api/ai/agent" });
+    await refundCredits(userId, CREDIT_COSTS.aiAction, "ai_agent_message_failed", {
+      route: "/api/ai/agent",
+    });
   } catch (error) {
     console.error("Failed to refund credits:", error);
   }
@@ -399,7 +402,9 @@ export async function POST(request: NextRequest) {
     const model = "claude-sonnet-4-6";
     const maxTokens = 8192;
 
-    await spendCredits(userId, 1, "ai_agent_message", { route: "/api/ai/agent" });
+    await spendCredits(userId, CREDIT_COSTS.aiAction, "ai_agent_message", {
+      route: "/api/ai/agent",
+    });
 
     const messages: Anthropic.MessageParam[] = [
       ...history.map((msg) => ({ role: msg.role, content: msg.content })),

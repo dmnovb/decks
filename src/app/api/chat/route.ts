@@ -4,6 +4,7 @@ import { tool, jsonSchema } from "ai";
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth/helpers";
+import { CREDIT_COSTS } from "@/lib/credit-costs";
 import { getOwnedOptionalFolderId } from "@/lib/ownership";
 import { validateJsonBody } from "@/lib/api/validation";
 import { z } from "zod";
@@ -25,7 +26,10 @@ const chatBodySchema = z.object({
 
 async function refundFailedChatRequest(userId: string, conversationId?: string) {
   try {
-    await refundCredits(userId, 1, "chat_message_failed", { route: "/api/chat", conversationId });
+    await refundCredits(userId, CREDIT_COSTS.aiMessage, "chat_message_failed", {
+      route: "/api/chat",
+      conversationId,
+    });
   } catch (error) {
     console.error("Failed to refund credits:", error);
   }
@@ -50,7 +54,10 @@ export async function POST(request: NextRequest) {
   const { messages, conversationId } = body.data;
 
   try {
-    await spendCredits(userId, 1, "chat_message", { route: "/api/chat", conversationId });
+    await spendCredits(userId, CREDIT_COSTS.aiMessage, "chat_message", {
+      route: "/api/chat",
+      conversationId,
+    });
 
     const userMemory = await prisma.userMemory.findUnique({ where: { userId } });
 
