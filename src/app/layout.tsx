@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/providers";
 import { AuthGuard } from "@/components/auth-guard";
+import { ThemeFavicon } from "@/components/theme-favicon";
 import { ThemeDock } from "@/components/ui/theme-dock";
 import { Toaster } from "@/components/ui/sonner";
 import { UmamiAnalytics } from "@/components/umami-analytics";
@@ -49,6 +50,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <link rel="icon" href="/logo-light.svg" sizes="any" />
         <script
           dangerouslySetInnerHTML={{
             __html: `if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');`,
@@ -65,6 +67,7 @@ export default function RootLayout({
           defaultTheme="dark"
           enableSystem={false}
         >
+          <ThemeFavicon />
           <AuthProvider>
             <AuthGuard>{children}</AuthGuard>
           </AuthProvider>

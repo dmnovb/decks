@@ -1,6 +1,5 @@
 "use client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Layers } from "lucide-react";
 import { LoginContent } from "./LoginContent/LoginContent";
 import { SignUpContent } from "./SignUpContent/SignUpContent";
 
@@ -47,7 +46,8 @@ const Login = () => {
 
       <div className="shadow-md p-4 bg-background-1 rounded-sm border-divider-0 border w-full max-w-[400px] mx-4">
         <div className="flex justify-center pb-8 items-center gap-2">
-          <Layers className="text-[var(--primary)]" />
+          <img src="/logo.svg" alt="" className="h-6 w-6 dark:hidden" />
+          <img src="/logo-light.svg" alt="" className="h-6 w-6 hidden dark:block" />
           <span className="text-xl font-extrabold select-none">ALCOVE</span>
         </div>
         <Tabs defaultValue="account" className="flex flex-col gap-8">
