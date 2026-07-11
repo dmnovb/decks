@@ -40,36 +40,44 @@ export async function POST(request: NextRequest) {
 
     const { sessionId, flashcardId, quality, timeSpent } = body.data;
 
-    const session = await prisma.studySession.findFirst({
-      where: { id: sessionId, userId, completedAt: null },
-      select: { id: true, deckId: true },
-    });
-
-    if (!session) {
-      return Response.json({ message: "Session not found" }, { status: 404 });
-    }
-
-    const flashcard = await prisma.flashcard.findFirst({
-      where: { id: flashcardId, deckId: session.deckId },
-    });
-
-    if (!flashcard) {
-      return Response.json(
-        { message: "Flashcard not found in this session deck" },
-        { status: 404 },
-      );
-    }
-
-    const { interval, repetitions, easeFactor } = sm2(
-      quality,
-      flashcard.repetitions,
-      flashcard.interval,
-      flashcard.easeFactor,
-    );
     const now = new Date();
-    const isCorrect = quality >= 3;
+    const result = await prisma.$transaction(async (tx) => {
+      const session = await tx.studySession.findFirst({
+        where: { id: sessionId, userId, completedAt: null },
+        select: { id: true },
+      });
 
-    const updatedFlashcard = await prisma.$transaction(async (tx) => {
+      if (!session) {
+        return { status: 404 as const, message: "Session not found" };
+      }
+
+      const sessionCard = await tx.studySessionCard.findUnique({
+        where: { sessionId_flashcardId: { sessionId, flashcardId } },
+        include: { flashcard: true },
+      });
+
+      if (!sessionCard) {
+        return { status: 400 as const, message: "Flashcard was not selected for this session" };
+      }
+
+      const claimedCard = await tx.studySessionCard.updateMany({
+        where: { sessionId, flashcardId, reviewedAt: null },
+        data: { reviewedAt: now },
+      });
+
+      if (claimedCard.count !== 1) {
+        return { status: 409 as const, message: "Flashcard already reviewed in this session" };
+      }
+
+      const flashcard = sessionCard.flashcard;
+      const { interval, repetitions, easeFactor } = sm2(
+        quality,
+        flashcard.repetitions,
+        flashcard.interval,
+        flashcard.easeFactor,
+      );
+      const isCorrect = quality >= 3;
+
       await tx.cardReview.create({
         data: {
           sessionId,
@@ -79,7 +87,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      return tx.flashcard.update({
+      const updatedFlashcard = await tx.flashcard.update({
         where: { id: flashcard.id },
         data: {
           difficulty: quality,
@@ -93,9 +101,15 @@ export async function POST(request: NextRequest) {
           correctReviews: flashcard.correctReviews + (isCorrect ? 1 : 0),
         },
       });
+
+      return { status: 200 as const, flashcard: updatedFlashcard };
     });
 
-    return Response.json({ success: true, flashcard: updatedFlashcard });
+    if (result.status !== 200) {
+      return Response.json({ message: result.message }, { status: result.status });
+    }
+
+    return Response.json({ success: true, flashcard: result.flashcard });
   } catch (error) {
     console.error("Create card review error:", error);
     return Response.json({ message: "Internal Server Error" }, { status: 500 });

@@ -143,7 +143,8 @@ model Flashcard {
   correctReviews Int       @default(0) // Number of correct reviews
 
   // Session tracking
-  cardReviews CardReview[]
+  cardReviews       CardReview[]
+  studySessionCards StudySessionCard[]
 }
 
 model Conversation {
@@ -184,9 +185,10 @@ model StudySession {
   totalTime    Int      @default(0)  // Total seconds
 
   // Relations
-  deck         Deck         @relation(fields: [deckId], references: [id])
-  user         User         @relation(fields: [userId], references: [id])
-  cardReviews  CardReview[]
+  deck          Deck               @relation(fields: [deckId], references: [id])
+  user          User               @relation(fields: [userId], references: [id])
+  cardReviews   CardReview[]
+  selectedCards StudySessionCard[]
 
   @@index([userId, startedAt])
   @@index([deckId])
@@ -205,5 +207,20 @@ model CardReview {
   flashcard   Flashcard    @relation(fields: [flashcardId], references: [id])
 
   @@index([sessionId])
+  @@index([flashcardId])
+}
+
+model StudySessionCard {
+  id          String    @id @default(uuid())
+  sessionId   String
+  flashcardId String
+  reviewedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  session     StudySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  flashcard   Flashcard    @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, flashcardId])
   @@index([flashcardId])
 }
